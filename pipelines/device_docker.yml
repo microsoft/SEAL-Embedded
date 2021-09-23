@@ -1,0 +1,40 @@
+trigger:
+  batch: true
+  branches:
+    include:
+    - main
+  paths:
+    exclude:
+    - 'tools/*'
+    - CODE_OF_CONDUCT.md
+    - CONTRIBUTING.md
+    - ISSUES.md
+    - LICENSE
+    - NOTICE
+    - README.md
+    - SECURITY.md
+
+stages:
+- stage: adapter
+  displayName: 'adapter'
+  jobs:
+  - job: build
+    displayName: 'Build SEAL-Embedded test image'
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    - task: CMake@1
+      displayName: 'CMake SEAL-Embedded Adapter'
+      inputs:
+        workingDirectory: '$(Build.SourcesDirectory)'
+        cmakeArgs: '-DCMAKE_BUILD_TYPE=Release adapter'
+    - script: |
+        cd $BUILD_SOURCESDIRECTORY
+        make
+      displayName: 'Build SEAL-Embedded Adapter'
+    - script: |
+        cd $BUILD_SOURCESDIRECTORY
+        ./bin/se_adapter <<< 1
+      displayName: 'Run SEAL-Embedded Adapter'
+    - bash: docker build --target build -t hlbuildimage -f .devcontainer/Dockerfile . &&  docker run --name hlbuildcontainer hlbuildimage && docker cp hlbuildcontainer:/out $(Build.ArtifactStagingDirectory)/HLOutput
+      displayName: Build SEAL-Embedded image

@@ -1,0 +1,13 @@
+{
+  "SchemaVersion": 1,
+  "Name": "SealEmbeddedApp",
+  "ComponentId": "5a4b43d1-a3b0-4f9f-a9c9-30a4cc52a2f2",
+  "EntryPoint": "/bin/app",
+  "CmdArgs": [],
+    "Capabilities": {
+        "Gpio": [ 9 ],
+        "AllowedApplicationConnections": [],
+        "AllowedConnections": [ "www.neverssl.com", "neverssl.com", "httpstat.us"]
+    },
+  "ApplicationType": "Default"
+}

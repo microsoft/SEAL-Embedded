@@ -1,0 +1,32 @@
+{
+  "Registrations": [
+    {
+      "component": {
+        "type": "git",
+        "git": {
+          "repositoryUrl": "https://github.com/microsoft/SEAL",
+          "commitHash": "2d2a25c916047d2f356d45ad50c98f0a9695905a"
+        }
+      }
+    },
+    {
+      "component": {
+        "type": "git",
+        "git": {
+          "repositoryUrl": "https://github.com/mupq/pqm4",
+          "commitHash": "65f12c6c66f10492eac2b434e93fd1aee742f0e1"
+        }
+      }
+    }
+    {
+      "component": {
+        "type": "other",
+        "Other": {
+          "Name": "nRF5 SDK",
+          "Version": "17.1.0",
+          "DownloadUrl": "https://developer.nordicsemi.com/nRF5_SDK/nRF5_SDK_v12.x.x/doc/12.3.0/nRF5_Nordic_license.txt"
+        }
+      }
+    }
+  ]
+}

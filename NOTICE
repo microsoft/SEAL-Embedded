@@ -1,0 +1,15 @@
+THIRD-PARTY SOFTWARE NOTICES AND INFORMATION
+
+This software incorporates components from the projects listed below. The original copyright notices
+and the licenses under which Microsoft received such components are set forth below and are provided for
+informational purposes only. Microsoft reserves all rights not expressly granted herein, whether by
+implication, estoppel or otherwise.
+
+This software includes parts of the pqm4 library (https://github.com/mupq/pqm4).
+The code from pqm4 library used in SEAL-Embedded is licensed under CC0 Universal, version 1.0. You can find a copy of this license at https://creativecommons.org/publicdomain/zero/1.0/legalcode
+
+This software includes parts of the Microsoft SEAL library (https://github.com/microsoft/SEAL).
+The Kyber library is licensed under the MIT license. You can find a copy of this license at https://github.com/microsoft/SEAL/blob/main/LICENSE.
+
+This software includes parts of the Nordic Semiconductor nRF5 SDK (https://www.nordicsemi.com/Products/Development-software/nRF5-SDK/Download).
+The nRF5 SDK is licensed under the nRF5 SDK license. You can find a copy of this license at https://developer.nordicsemi.com/nRF5_SDK/nRF5_SDK_v12.x.x/doc/12.3.0/nRF5_Nordic_license.txt.

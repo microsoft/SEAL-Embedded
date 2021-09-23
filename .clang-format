@@ -1,0 +1,26 @@
+---
+Language: Cpp
+BasedOnStyle: Google
+AllowShortLoopsOnASingleLine: true
+AllowShortCaseLabelsOnASingleLine: true
+AllowShortIfStatementsOnASingleLine: true
+AllowShortBlocksOnASingleLine: true
+AllowShortFunctionsOnASingleLine: false
+AlignConsecutiveAssignments: true
+BreakBeforeBraces: Custom
+BraceWrapping:
+    AfterEnum: false
+    AfterFunction: true
+    AfterStruct: true
+    AfterCaseLabel: false
+    BeforeElse: true
+    AfterControlStatement: true
+BinPackParameters: true
+ColumnLimit: 100
+DerivePointerAlignment: false
+IncludeBlocks:   Regroup
+IndentPPDirectives: None
+IndentWidth: 4
+IndentGotoLabels: false
+PointerAlignment: Right
+TabWidth: 4

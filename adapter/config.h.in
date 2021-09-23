@@ -1,0 +1,10 @@
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT license.
+
+/**
+@file config.h
+*/
+
+#pragma once
+
+#define SE_ADAPTER_FILE_OUTPUT_DIR "@SE_ADAPTER_FILE_OUTPUT_DIR@"
