@@ -29,7 +29,7 @@ The simplest workflow is described as follows:
 This library is research code and is not yet intended for production use.
 Use at your own risk.
 Holding secret key on device's storage for asymmetric encryption is extremely dangerous, regardless of whether the storage type is persistent or not.
-Use public key (symmetric encryption), or consult a security expert.
+Use public key (asymmetric encryption), or consult a security expert.
 See more information related to [SECURITY](SECURITY.md).
 
 ## Building SEAL-Embedded
