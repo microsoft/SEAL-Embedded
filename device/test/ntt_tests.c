@@ -6,9 +6,7 @@
 */
 
 #include "defines.h"
-
 #ifndef SE_NTT_NONE
-
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>  // memset
@@ -91,7 +89,11 @@ void test_poly_mult_ntt_intt_helper(const Parms *parms, const ZZ *ntt_roots, con
     const char *right_side_str = "    [a * b]_Rq ";
 
     // -- First, make sure we can get back the original vector
-    memcpy(sb_res, a, n * sizeof(a[0]));  // sb_res = a
+    se_assert(sb_res && a);
+    if (sb_res && a)
+    {
+        memcpy(sb_res, a, n * sizeof(a[0]));  // sb_res = a
+    }
 
     ntt_inpl(parms, ntt_roots, sb_res);  // sb_res = ntt(a)
     print_poly("     ntt(a) ", sb_res, n);
@@ -121,20 +123,25 @@ void test_poly_mult_ntt_intt_helper(const Parms *parms, const ZZ *ntt_roots, con
     compare_poly(right_side_str, sb_res, left_side_str, a, n);
 }
 
-void test_poly_mult_ntt(void)
+/**
+@param[in] n        Polynomial ring degree (ignored if SE_USE_MALLOC is defined)
+@param[in] nprimes  # of modulus primes    (ignored if SE_USE_MALLOC is defined)
+*/
+void test_poly_mult_ntt(size_t n, size_t nprimes)
 {
+#ifndef SE_USE_MALLOC
+    se_assert(n == SE_DEGREE_N && nprimes == SE_NPRIMES);  // sanity check
+    if (n != SE_DEGREE_N) n = SE_DEGREE_N;
+    if (nprimes != SE_NPRIMES) nprimes = SE_NPRIMES;
+#endif
+
     printf("**********************************\n\n");
     printf("Beginning tests for poly_mult_mod_ntt");
     printf("....\n\n");
 
-    // ================================
-    //			Configuration
-    // ================================
-    PolySizeType n      = 4096;
     bool intt_mult_test = true;
-    // ================================
     Parms parms;
-    set_parms_ckks(n, 1, &parms);
+    set_parms_ckks(n, nprimes, &parms);
     print_test_banner("Ntt", &parms);
 
 #ifdef SE_NTT_OTF
@@ -160,8 +167,11 @@ void test_poly_mult_ntt(void)
 #ifdef SE_USE_MALLOC
     ZZ *mempool = calloc(mempool_size, sizeof(ZZ));
 #else
+    se_assert(n == SE_DEGREE_N && nprimes == SE_NPRIMES);
     ZZ mempool_local[4 * SE_DEGREE_N + NTT_TESTS_ROOTS_MEM + INTT_TESTS_ROOTS_MEM];
+    se_assert(mempool_size == (4 * SE_DEGREE_N + NTT_TESTS_ROOTS_MEM + INTT_TESTS_ROOTS_MEM));
     ZZ *mempool = &(mempool_local[0]);
+    memset(mempool, 0, mempool_size * sizeof(ZZ));
 #endif
 
     // clang-format off
@@ -212,7 +222,6 @@ void test_poly_mult_ntt(void)
         for (int testnum = 1; testnum < 14; testnum++)
         {
             printf("--------------- Test %d ------------------\n", testnum);
-            reset_primes(&parms);
             clear(mempool, mempool_size - ntt_roots_size - intt_roots_size);  // Reset for each test
             switch (testnum)
             {
@@ -298,7 +307,11 @@ void test_poly_mult_ntt(void)
             break;
     }
 #ifdef SE_USE_MALLOC
-    free(mempool);
+    if (mempool)
+    {
+        free(mempool);
+        mempool = 0;
+    }
 #endif
     delete_parameters(&parms);
 }

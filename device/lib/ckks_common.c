@@ -51,8 +51,7 @@ void ckks_calc_index_map(const Parms *parms, uint16_t *index_map)
         size_t index1 = ((size_t)pos - 1) / 2;
         size_t index2 = n - index1 - 1;
 
-        // -- Merge index mapping step w/ bitrev step req. for later application of
-        // ifft/fft
+        // -- Merge index mapping step w/ bitrev step req. for later application of ifft/fft
         index_map[i]              = (uint16_t)bitrev(index1, logn);
         index_map[i + slot_count] = (uint16_t)bitrev(index2, logn);
 
@@ -75,6 +74,8 @@ void ckks_setup(size_t degree, size_t nprimes, uint16_t *index_map, Parms *parms
     ckks_calc_index_map(parms, index_map);
 #elif defined(SE_INDEX_MAP_LOAD_PERSIST)
     load_index_map(parms, index_map);
+#elif defined(SE_INDEX_MAP_LOAD_PERSIST_SYM_LOAD_ASYM)
+    if (!parms->is_asymmetric) load_index_map(parms, index_map);
 #endif
 }
 
@@ -91,6 +92,8 @@ void ckks_setup_custom(size_t degree, size_t nprimes, const ZZ *modulus_vals, co
     ckks_calc_index_map(parms, index_map);
 #elif defined(SE_INDEX_MAP_LOAD_PERSIST)
     load_index_map(parms, index_map);
+#elif defined(SE_INDEX_MAP_LOAD_PERSIST_SYM_LOAD_ASYM)
+    if (!parms->is_asymmetric) load_index_map(parms, index_map);
 #endif
 }
 
@@ -110,6 +113,12 @@ bool ckks_encode_base(const Parms *parms, const flpt *values, size_t values_len,
 #ifdef SE_INDEX_MAP_LOAD
     se_assert(index_map);
     load_index_map(parms, index_map);
+#elif defined(SE_INDEX_MAP_LOAD_PERSIST_SYM_LOAD_ASYM)
+    if (parms->is_asymmetric)
+    {
+        se_assert(index_map);
+        load_index_map(parms, index_map);
+    }
 #endif
     // if (index_map) print_poly_uint16("index map", index_map, n);
 
@@ -136,7 +145,7 @@ bool ckks_encode_base(const Parms *parms, const flpt *values, size_t values_len,
 #endif
         se_assert(index1_rev < n);
         se_assert(index2_rev < n);
-        double complex val    = (double complex)_complex(values[i], 0);
+        double complex val    = (double complex)_complex((double)values[i], (double)0);
         conj_vals[index1_rev] = val;
         conj_vals[index2_rev] = val;
         // -- Note: conj_vals[index2_rev] should be set to conj(val), but since we
@@ -261,9 +270,7 @@ void reduce_add_e_small(const Parms *parms, const int8_t *e, ZZ *out)
     Modulus *mod   = parms->curr_modulus;
 
     for (size_t i = 0; i < n; i++)
-    {
-        add_mod_inpl(&(out[i]), ((-(ZZ)(e[i] < 0)) & mod->value) + (ZZ)e[i], mod);
-    }
+    { add_mod_inpl(&(out[i]), ((-(ZZ)(e[i] < 0)) & mod->value) + (ZZ)e[i], mod); }
 }
 
 #ifdef SE_USE_MALLOC

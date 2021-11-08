@@ -4,16 +4,17 @@
 /**
 @file sample.h
 
-Functions to sample a value or polynomial from a uniform, uniform ternary or centered
-binomial distribution.
+Functions to sample a value or polynomial from a uniform, uniform ternary or centered binomial
+distribution.
 */
 
 #pragma once
 
-#include <stdint.h>  // uint64_t
-
 #include "defines.h"
 #include "parameters.h"
+// #include "util_print.h" // TODO: Including this breaks things?
+#include <stdint.h>  // uint64_t
+
 #include "rng.h"
 #include "stdio.h"
 
@@ -152,8 +153,7 @@ Note: val_in should be either 0, 1, or 2 (which represent -1, 0, and 1, in some 
 void set_small_poly_idx(size_t idx, uint8_t val_in, ZZ *poly);
 
 /**
-Returns the value of the (idx)-th coefficient of 'poly', leaving 'poly' and result in
-small form.
+Returns the value of the (idx)-th coefficient of 'poly', leaving 'poly' and result in small form.
 
 @param[in] poly  A ternary polynomial in small (compressed) form
 @param[in] idx   Requested coefficient to read
@@ -172,13 +172,13 @@ Returns the value of the (idx)-th coefficient of 'poly', leaving 'poly' in small
 ZZ get_small_poly_idx_expanded(const ZZ *poly, size_t idx, ZZ q);
 
 /**
-Expands a small (compressed) ternary polynomial w.r.t. the current modulus and places the
-result in `dest'. 'dest' and 'src' memory may share the same starting address, since
-expansion occurs backwards (see: 'in place' version below).
+Expands a small (compressed) ternary polynomial w.r.t. the current modulus and places the result in
+`dest'. 'dest' and 'src' memory may share the same starting address, since expansion occurs
+backwards (see: 'in place' version below).
 
-Note: This function does not keep track of 'small_u' or 'small_s' flag. These flags must
-be tracked/updated outside of this function if necessary. Space req: 'dest' must have
-space for n ZZ elements.
+Note: This function does not keep track of 'small_u' or 'small_s' flag. These flags must be
+tracked/updated outside of this function if necessary. Space req: 'dest' must have space for n ZZ
+elements.
 
 @param[in]  src    Source polynomial in small form
 @param[in]  parms  Parameters instance
@@ -189,20 +189,18 @@ void expand_poly_ternary(const ZZ *src, const Parms *parms, ZZ *dest);
 /**
 Expands a small (compressed) ternary polynomial in place w.r.t. the current modulus.
 
-Note: This function does not keep track of 'small_u' or 'small_s' flag. These flags must
-be tracked/updated outside of this function if necessary. Space req: 'poly' must have
-space for n ZZ elements.
+Note: This function does not keep track of 'small_u' or 'small_s' flag. These flags must be
+tracked/updated outside of this function if necessary. Space req: 'poly' must have space for n ZZ
+elements.
 
-@param[in,out] poly   In: Source polynomial in small form; Out: result polynomial in
-expanded form
+@param[in,out] poly   In: Source polynomial in small form; Out: result polynomial in expanded form
 @param[in]     parms  Parameters instance
 */
 void expand_poly_ternary_inpl(ZZ *poly, const Parms *parms);
 
 /**
-Reduces an (expanded) ternary polynomial w.r.t. the current modulus and places the result
-in `dest'. 'dest' and 'src' memory may share the same starting address (see: 'in place'
-version below).
+Reduces an (expanded) ternary polynomial w.r.t. the current modulus and places the result in `dest'.
+'dest' and 'src' memory may share the same starting address (see: 'in place' version below).
 
 Space req: 'dest' must have space for n ZZ elements.
 
@@ -223,11 +221,10 @@ Space req: 'poly' must have space for n ZZ elements.
 void convert_poly_ternary_inpl(ZZ *poly, const Parms *parms);
 
 /**
-Samples an (expanded) polynomial from the uniform ternary distribution over {-q-1, 0, 1},
-where q is the value of the current modulus. This function is mainly useful for testing,
-since most of the time we would want to sample the polynomial in compressed form (see:
-sample_small_poly_ternary). PRNG instance is used to generate randomness for 1 coefficient
-at a time.
+Samples an (expanded) polynomial from the uniform ternary distribution over {-q-1, 0, 1}, where q is
+the value of the current modulus. This function is mainly useful for testing, since most of the time
+we would want to sample the polynomial in compressed form (see: sample_small_poly_ternary). PRNG
+instance is used to generate randomness for 1 coefficient at a time.
 
 Space req: 'poly' must have space for n ZZ values
 
@@ -238,10 +235,10 @@ Space req: 'poly' must have space for n ZZ values
 void sample_poly_ternary(const Parms *parms, SE_PRNG *prng, ZZ *poly);
 
 /**
-Samples a small (compressed) polynomial from the uniform ternary distribution over {-q-1,
-0, 1}, where q is the value of the current modulus. Note that this does *not* assume the
-input buffer is in small form. It assumes that the input buffer has space for n uint8_t
-values. PRNG instance is used to generate randomness for 1 coefficient at a time.
+Samples a small (compressed) polynomial from the uniform ternary distribution over {-q-1, 0, 1},
+where q is the value of the current modulus. Note that this does *not* assume the input buffer is in
+small form. It assumes that the input buffer has space for n uint8_t values. PRNG instance is used
+to generate randomness for 1 coefficient at a time.
 
 Space req: 'poly' must have space for n uin8_t values
 
@@ -252,10 +249,10 @@ Space req: 'poly' must have space for n uin8_t values
 void sample_small_poly_ternary(PolySizeType n, SE_PRNG *prng, ZZ *poly);
 
 /**
-Samples a small (compressed) polynomial from the uniform ternary distribution over {-q-1,
-0, 1}, where q is the value of the current modulus, while leaving the polynomial in
-compressed form. PRNG instance is used to generate randomness for k coefficients at a time
-(prior to any required rejection re-sampling, which occurs 1 coefficient at a time).
+Samples a small (compressed) polynomial from the uniform ternary distribution over {-q-1, 0, 1},
+where q is the value of the current modulus, while leaving the polynomial in compressed form. PRNG
+instance is used to generate randomness for k coefficients at a time (prior to any required
+rejection re-sampling, which occurs 1 coefficient at a time).
 
 Space req: 'poly' must have space for n uin8_t values
 
@@ -267,10 +264,10 @@ Space req: 'poly' must have space for n uin8_t values
 // void sample_small_poly_ternary_prng_k(size_t k, PolySizeType n, SE_PRNG *prng, ZZ *poly);
 
 /**
-Samples a small (compressed) polynomial from the uniform ternary distribution over {-q-1,
-0, 1}, where q is the value of the current modulus, while leaving the polynomial in
-compressed form. PRNG instance is used to generate randomness for 96 coefficients at a
-time (prior to any required rejection re-sampling, which occurs 1 coefficient at a time).
+Samples a small (compressed) polynomial from the uniform ternary distribution over {-q-1, 0, 1},
+where q is the value of the current modulus, while leaving the polynomial in compressed form. PRNG
+instance is used to generate randomness for 96 coefficients at a time (prior to any required
+rejection re-sampling, which occurs 1 coefficient at a time).
 
 Space req: 'poly' must have space for n uin8_t values
 
@@ -285,8 +282,8 @@ void sample_small_poly_ternary_prng_96(PolySizeType n, SE_PRNG *prng, ZZ *poly);
 // ------------------------------------------------------
 
 /**
-Samples coefficients of a polynomial from a centered binomial distribution
-(non-modulo-reduced). PRNG instance is used to sample 1 coefficient at a time.
+Samples coefficients of a polynomial from a centered binomial distribution (non-modulo-reduced).
+PRNG instance is used to sample 1 coefficient at a time.
 
 @param[in]     n     Number of coefficients to sample (e.g. degree of 'poly')
 @param[in,out] prng  PRNG instance (will update counter)
@@ -295,9 +292,8 @@ Samples coefficients of a polynomial from a centered binomial distribution
 void sample_poly_cbd_generic(PolySizeType n, SE_PRNG *prng, int8_t *poly);
 
 /**
-Samples coefficients of a polynomial from a centered binomial distribution
-(non-modulo-reduced). PRNG instance is used to generate randomness for k coefficients at a
-time.
+Samples coefficients of a polynomial from a centered binomial distribution (non-modulo-reduced).
+PRNG instance is used to generate randomness for k coefficients at a time.
 
 @param[in]     k     Number of coefficients to generate randomness for at once
 @param[in]     n     Total number of coefficients to sample (e.g. degree of 'poly')
@@ -307,9 +303,8 @@ time.
 // void sample_poly_cbd_generic_prng_k(size_t k, PolySizeType n, SE_PRNG *prng, int8_t *poly);
 
 /**
-Samples coefficients of a polynomial from a centered binomial distribution
-(non-modulo-reduced). PRNG instance is used to generate randomness for 16 coefficients at
-a time.
+Samples coefficients of a polynomial from a centered binomial distribution (non-modulo-reduced).
+PRNG instance is used to generate randomness for 16 coefficients at a time.
 
 @param[in]     n     Number of coefficients to sample (e.g. degree of 'poly')
 @param[in,out] prng  PRNG instance (will update counter)
@@ -318,24 +313,22 @@ a time.
 void sample_poly_cbd_generic_prng_16(PolySizeType n, SE_PRNG *prng, int8_t *poly);
 
 /**
-Samples coefficients of a polynomial from a centered binomial distribution
-(non-modulo-reduced) and adds them in-place to the polynomial 'poly'. PRNG instance is
-used to generate randomness for 1 coefficient at a time.
+Samples coefficients of a polynomial from a centered binomial distribution (non-modulo-reduced) and
+adds them in-place to the polynomial 'poly'. PRNG instance is used to generate randomness for 1
+coefficient at a time.
 
-@param[in, out] poly  In: Initial polynomial; Out: Initial polynomial + cbd error
-polynomial
+@param[in, out] poly  In: Initial polynomial; Out: Initial polynomial + cbd error polynomial
 @param[in]      n     Number of coefficients to sample (e.g. degree of 'poly')
 @param[in,out]  prng  PRNG instance (will update counter)
 */
 void sample_add_poly_cbd_generic_inpl(int64_t *poly, PolySizeType n, SE_PRNG *prng);
 
 /**
-Samples coefficients of a polynomial from a centered binomial distribution
-(non-modulo-reduced) and adds them in-place to the polynomial 'poly'. PRNG instance is
-used to generate randomness for k coefficients at a time.
+Samples coefficients of a polynomial from a centered binomial distribution (non-modulo-reduced) and
+adds them in-place to the polynomial 'poly'. PRNG instance is used to generate randomness for k
+coefficients at a time.
 
-@param[in, out] poly  In: Initial polynomial; Out: Initial polynomial + cbd error
-polynomial
+@param[in, out] poly  In: Initial polynomial; Out: Initial polynomial + cbd error polynomial
 @param[in]      k     Number of coefficients to generate randomness for at once
 @param[in]      n     Total number of coefficients to sample (e.g. degree of 'poly')
 @param[in,out]  prng  PRNG instance (will update counter)
@@ -344,12 +337,11 @@ polynomial
 // *prng);
 
 /**
-Samples coefficients of a polynomial from a centered binomial distribution
-(non-modulo-reduced) and adds them in-place to the polynomial 'poly'. PRNG instance is
-used to generate randomness for 16 coefficients at a time.
+Samples coefficients of a polynomial from a centered binomial distribution (non-modulo-reduced) and
+adds them in-place to the polynomial 'poly'. PRNG instance is used to generate randomness for 16
+coefficients at a time.
 
-@param[in, out] poly  In: Initial polynomial; Out: Initial polynomial + cbd error
-polynomial
+@param[in, out] poly  In: Initial polynomial; Out: Initial polynomial + cbd error polynomial
 @param[in]      n     Number of coefficients to sample (e.g. degree of 'poly')
 @param[in,out]  prng  PRNG instance (will update counter)
 */

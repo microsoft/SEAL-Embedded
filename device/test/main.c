@@ -4,12 +4,15 @@
 /**
 @file main.c
 
-Note: Currently, you can only run one test at a time. Uncomment the test you want to run (and
-uncomment all others) before compiling. Note: Not all the tests will run on the devices since tests
-may consume much more memory than regular API usage.
+Note: While the tests can run back-to-back, on device it is best to run only one test at a time
+(i.e., uncomment the test you want to run and uncomment all others before compiling.)
+Note: Not all the tests may run on the devices since tests may consume much more memory than regular
+API usage.
 */
 
 #include "defines.h"
+
+#ifndef SE_DISABLE_TESTING_CAPABILITY
 #include "util_print.h"
 
 extern void test_add_uint(void);
@@ -17,18 +20,18 @@ extern void test_mult_uint(void);
 extern void test_add_mod(void);
 extern void test_neg_mod(void);
 extern void test_mul_mod(void);
-extern void test_sample_poly_uniform(void);
-extern void test_sample_poly_ternary(void);
-extern void test_sample_poly_ternary_small(void);
+extern void test_sample_poly_uniform(size_t n);
+extern void test_sample_poly_ternary(size_t n);
+extern void test_sample_poly_ternary_small(size_t n);
 extern void test_barrett_reduce(void);
 extern void test_barrett_reduce_wide(void);
-extern void test_poly_mult_ntt(void);
-extern void test_fft(void);
-extern void test_enc_zero_sym(void);
-extern void test_enc_zero_asym(void);
-extern void test_ckks_encode(void);
-extern void test_ckks_encode_encrypt_sym(void);
-extern void test_ckks_encode_encrypt_asym(void);
+extern void test_poly_mult_ntt(size_t n, size_t nprimes);
+extern void test_fft(size_t n);
+extern void test_enc_zero_sym(size_t n, size_t nprimes);
+extern void test_enc_zero_asym(size_t n, size_t nprimes);
+extern void test_ckks_encode(size_t n);
+extern void test_ckks_encode_encrypt_sym(size_t n, size_t nprimes);
+extern void test_ckks_encode_encrypt_asym(size_t n, size_t nprimes);
 extern void test_ckks_api_sym(void);
 extern void test_ckks_api_asym(void);
 
@@ -81,36 +84,50 @@ int main(void)
     //     printf("Beginning tests...\n");
     // }
     printf("Beginning tests...\n");
-    se_randomness_init();  // required for nrf. does nothing if not on nrf
+#ifdef SE_RAND_NRF5
+    se_randomness_init();  // required for nrf
+#endif
 
-    // test_sample_poly_uniform();
-    // test_sample_poly_ternary();
-    // test_sample_poly_ternary_small(); // Only useful when SE_USE_MALLOC is defined
+#ifdef SE_USE_MALLOC
+    // const size_t n =  1024, nprimes = 1;
+    // const size_t n =  2048, nprimes = 1;
+    const size_t n = 4096, nprimes = 3;
+    // const size_t n =  8192, nprimes = 6;
+    // const size_t n = 16384, nprimes = 13;
+#else
+    const size_t n       = SE_DEGREE_N;
+    const size_t nprimes = SE_NPRIMES;
+#endif
 
-    // test_add_uint();
-    // test_mult_uint();
+    test_sample_poly_uniform(n);
+    test_sample_poly_ternary(n);
+    test_sample_poly_ternary_small(n);  // Only useful when SE_USE_MALLOC is defined
 
-    // test_barrett_reduce();
-    // test_barrett_reduce_wide();
+    test_add_uint();
+    test_mult_uint();
 
-    // test_add_mod();
-    // test_neg_mod();
-    // test_mul_mod();
+    test_barrett_reduce();
+    test_barrett_reduce_wide();
+
+    test_add_mod();
+    test_neg_mod();
+    test_mul_mod();
 
     // -- Note: This test sometimes takes a while to run
     //    because it uses schoolbook multiplication
-    // test_poly_mult_ntt();
+    // -- Comment it out unless you need to test it
+    // test_poly_mult_ntt(n, nprimes);
 
-    test_fft();
+    test_fft(n);
 
-    // test_enc_zero_sym();
-    // test_enc_zero_asym();
+    test_enc_zero_sym(n, nprimes);
+    test_enc_zero_asym(n, nprimes);
 
-    // test_ckks_encode();
+    test_ckks_encode(n);
 
     // -- Main tests
-    test_ckks_encode_encrypt_sym();
-    // test_ckks_encode_encrypt_asym();
+    test_ckks_encode_encrypt_sym(n, nprimes);
+    test_ckks_encode_encrypt_asym(n, nprimes);
 
     // -- Run these tests to verify api
     // -- Check the result with the adapter by writing output to a text file
@@ -124,3 +141,5 @@ int main(void)
     printf("...done with all tests. All tests passed.\n");
     exit(0);
 }
+
+#endif

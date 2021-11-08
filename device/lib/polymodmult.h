@@ -14,13 +14,14 @@
 #include "modulo.h"
 
 /**
-Multiplies two ring polynomials using schoolbook multiplication. The result polynomial
-will be returned in the first n ZZ elements pointed to by 'res'.
+TODO: Move to testing code?
+Multiplies two ring polynomials using schoolbook multiplication. The result polynomial will be
+returned in the first n ZZ elements pointed to by 'res'.
 
 Note: This function is *not* constant-time, and is mainly useful for testing.
 
-Space req: 'res' must constain space for 2n ZZ elements, where each input polynomial
-consists of n ZZ elements (each).
+Space req: 'res' must constain space for 2n ZZ elements, where each input polynomial consists of n
+ZZ elements (each).
 
 @param[in]  a    Input polynomial 1
 @param[in]  b    Input polynomial 2
@@ -28,5 +29,4 @@ consists of n ZZ elements (each).
 @param[in]  mod  Modulus
 @param[out] res  Result of [a . b]_mod (in the first n ZZ elements)
 */
-void poly_mult_mod_sb(const ZZ *a, const ZZ *b, PolySizeType n, const Modulus *mod,
-                      ZZ *res);
+void poly_mult_mod_sb(const ZZ *a, const ZZ *b, PolySizeType n, const Modulus *mod, ZZ *res);

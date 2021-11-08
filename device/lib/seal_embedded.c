@@ -222,12 +222,14 @@ bool se_encrypt(SEND_FNCT_PTR network_send_function, void *v, size_t vlen_bytes,
 
 void se_cleanup(SE_PARMS *se_parms)
 {
+    se_assert(se_parms);
 #ifdef SE_USE_MALLOC
+    se_assert(se_parms->se_ptrs);
     delete_parameters(se_parms->parms);
 
     // -- Free the memory pool. Note that conj_vals should always point to the start.
     // -- TODO: Make this better
-    free(se_parms->se_ptrs->conj_vals);
+    if (se_parms->se_ptrs->conj_vals) free(se_parms->se_ptrs->conj_vals);
 #endif
     se_parms->parms = 0;
 }

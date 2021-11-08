@@ -8,17 +8,17 @@ Adapted from Sphere example
 */
 
 #include "defines.h"
-
 #ifdef SE_ON_SPHERE_A7
-    #include <applibs/networking.h>
-    #include <curl/curl.h>
-    #include <errno.h>
-    #include <stdbool.h>
-    #include <stdio.h>
-    #include <string.h>  // strerror
+#ifdef SE_USE_MALLOC
+#include <applibs/networking.h>
+#include <curl/curl.h>
+#include <errno.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <string.h>  // strerror
 
-    #include "network.h"
-    #include "util_print.h"
+#include "network.h"
+#include "util_print.h"
 
 void test_network_basic(void)
 {
@@ -64,12 +64,12 @@ void test_network_basic(void)
     //
     // Then, try a POST
     //
-    size_t num_data_bytes = 1 * sizeof(ZZ);
-    ZZ *data              = malloc(num_data_bytes);
-    data[0]               = 5;
+    const size_t num_data_bytes = 1 * sizeof(ZZ);
+    ZZ *data                    = malloc(num_data_bytes);
+    data[0]                     = 5;
 
     struct curl_slist *headers = NULL;
-    headers = curl_slist_append(headers, "Content-Type: vector<uint64_t>");
+    headers                    = curl_slist_append(headers, "Content-Type: vector<uint64_t>");
 
     res = curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data);
     if (is_curl_error(&res, "postfields")) { goto cleanup2; }
@@ -84,7 +84,11 @@ void test_network_basic(void)
     if (is_curl_error(&res, "post")) { goto cleanup2; }
 
 cleanup2:
-    free(data);
+    if (data)
+    {
+        free(data);
+        data = 0;
+    }
     curl_slist_free_all(curl);
 
 cleanup:
@@ -92,14 +96,18 @@ cleanup:
     curl_global_cleanup();
 }
 
-void test_network(void)
+void test_network(size_t len)
 {
-    size_t len            = 1024;
-    size_t num_data_bytes = len * sizeof(ZZ);
-    ZZ *data              = malloc(num_data_bytes);
+    const size_t num_data_bytes = len * sizeof(ZZ);
+    ZZ *data                    = malloc(num_data_bytes);
 
     for (size_t i = 0; i < len; i++) data[i] = (ZZ)i;
     send_over_network(data, num_data_bytes);
-    free(data);
+    if (data)
+    {
+        free(data);
+        data = 0;
+    }
 }
+#endif
 #endif

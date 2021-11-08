@@ -26,6 +26,7 @@ Modular addition. Correctness: (op1 + op2) <= (2q - 1).
 static inline ZZ add_mod(ZZ op1, ZZ op2, const Modulus *q)
 {
     ZZ q_val = q->value;
+    se_assert((op1 + op2) <= (2 * q_val - 1));
 
     // -- We know that the sum can fit into a uint32:
     //      max(uint32_t) = 2^32 - 1
@@ -49,6 +50,7 @@ In-place modular addition. Correctness: (op1 + op2) <= (2q - 1).
 */
 static inline void add_mod_inpl(ZZ *op1, ZZ op2, const Modulus *q)
 {
+    se_assert(op1 && ((op1[0] + op2) <= (2 * q->value - 1)));
     op1[0] = add_mod(op1[0], op2, q);
 }
 
@@ -61,6 +63,7 @@ Modular negation.
 */
 static inline ZZ neg_mod(ZZ op, const Modulus *q)
 {
+    se_assert(op <= q->value);
     ZZsign non_zero = (ZZsign)(op != 0);
     ZZ mask         = (ZZ)(-non_zero);
 
@@ -77,6 +80,7 @@ In-place modular negation.
 */
 static inline void neg_mod_inpl(ZZ *op, const Modulus *q)
 {
+    se_assert(op && op[0] <= q->value);
     op[0] = neg_mod(op[0], q);
 }
 
@@ -90,6 +94,7 @@ Modular subtraction.
 */
 static inline ZZ sub_mod(ZZ op1, ZZ op2, const Modulus *q)
 {
+    se_assert(op1 <= q->value && op2 <= q->value);
     ZZ negated = neg_mod(op2, q);
     return add_mod(op1, negated, q);
 }
@@ -103,6 +108,7 @@ In-place modular subtraction.
 */
 static inline void sub_mod_inpl(ZZ *op1, ZZ op2, const Modulus *q)
 {
+    se_assert(op1 && op1[0] <= q->value && op2 <= q->value);
     add_mod_inpl(op1, neg_mod(op2, q), q);
 }
 
@@ -130,6 +136,7 @@ In-place modular multiplication using Barrett reduction.
 */
 static inline void mul_mod_inpl(ZZ *op1, ZZ op2, const Modulus *q)
 {
+    se_assert(op1);
     op1[0] = mul_mod(op1[0], op2, q);
 }
 
@@ -148,8 +155,8 @@ static inline ZZ mul_add_mod(ZZ op1, ZZ op2, ZZ op3, const Modulus *q)
 }
 
 /**
-In-place modular multiplication of two values followed by a modular addition of
-a third value.
+In-place modular multiplication of two values followed by a modular addition of a third value.
+
 @param[in,out] op1  In: Operand 1; Out: (op1 + (op2 * op3) mod q) mod q
 @param[in]     op2  Operand 2
 @param[in]     op3  Operand 3
@@ -161,9 +168,8 @@ static inline void mul_add_mod_inpl(ZZ *op1, ZZ op2, ZZ op3, const Modulus *q)
 }
 
 /**
-Exponentiates a ZZ-type value with respect to a modulus. Prior to exponentiation,
-bit-reverses the value. May potentially be faster than calling bit-reverse first and
-exponentiate_uint_mod after.
+Exponentiates a ZZ-type value with respect to a modulus. Prior to exponentiation, bit-reverses the
+value. May potentially be faster than calling bit-reverse first and exponentiate_uint_mod after.
 
 @param[in] operand   Value to exponentiate
 @param[in] exponent  Exponent to raise operand to
@@ -241,7 +247,7 @@ static inline ZZ exponentiate_uint_mod(ZZ operand, ZZ exponent, const Modulus *m
     ZZ intermediate = 1;
     // print_zz("exponent begin", exponent);
 
-    // Initially: power = operand and intermediate = 1, product is irrelevant.
+    // -- Initially: power = operand and intermediate = 1, product is irrelevant.
     while (true)
     {
         if (exponent & 1)
@@ -291,12 +297,12 @@ typedef struct MUMO
 } MUMO;
 
 /**
-Modular mult. using a highly-optimized variant of Barrett reduction. Reduces result to [0,
-2q- 1]. Correctness: q <= 63-bit, y < q.
+Modular mult. using a highly-optimized variant of Barrett reduction. Reduces result to [0, 2q- 1].
+Correctness: q <= 31-bit, y < q.
 
 @param[in] x  Operand 1
 @param[in] y  Operand 2
-@param[in] q  Modulus. Must be <= 63 bits
+@param[in] q  Modulus. Must be <= 31 bits
 @returns      ((x * y) mod q) or (((x * y) mod q) + q)
 */
 static inline ZZ mul_mod_mumo_lazy(ZZ x, const MUMO *y, const Modulus *modulus)
@@ -308,9 +314,9 @@ static inline ZZ mul_mod_mumo_lazy(ZZ x, const MUMO *y, const Modulus *modulus)
     //    The formula for this is:
     //      r = [ [x*y]b - [floor(x*u/t) * q]b ]b
     //        = [ [op1]b - [op2 * q]b ]b
-    //     where u = floor(y*t/q), b = 2^64, t = 2^64
+    //     where u = floor(y*t/q), b = 2^32, t = 2^32
 
-    // -- This will implicitly give us [x*y]b by only returning the lower 64 bits of x*y
+    // -- This will implicitly give us [x*y]b by only returning the lower 32 bits of x*y
     ZZ op1 = x * y->operand;
 
     // -- We can get op2 = floor(x*u/t) by multiplying x with floor(u) and taking the high
@@ -325,12 +331,12 @@ static inline ZZ mul_mod_mumo_lazy(ZZ x, const MUMO *y, const Modulus *modulus)
 }
 
 /**
-Modular mult. using a highly-optimized variant of Barrett reduction. Reduces result to [0,
-q). Correctness: q <= 63-bit, y < q.
+Modular mult. using a highly-optimized variant of Barrett reduction. Reduces result to [0, q).
+Correctness: q <= 31-bit, y < q.
 
 @param[in] x  Operand 1
 @param[in] y  Operand 2
-@param[in] q  Modulus. Must be <= 63 bits.
+@param[in] q  Modulus. Must be <= 31 bits.
 @returns      (x * y) mod q
 */
 static inline ZZ mul_mod_mumo(ZZ x, const MUMO *y, const Modulus *q)

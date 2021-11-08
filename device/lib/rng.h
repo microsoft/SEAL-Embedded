@@ -18,9 +18,9 @@ Pseudo-random number generator.
 #include "shake256/fips202.h"
 
 #ifdef SE_RAND_GETRANDOM
-    #include <sys/random.h>  // getrandom
+#include <sys/random.h>  // getrandom
 #elif defined(SE_RAND_NRF5)
-    #include "nrf_crypto.h"
+#include "nrf_crypto.h"
 #endif
 
 typedef struct SE_PRNG
@@ -52,8 +52,7 @@ inline void prng_randomize_reset(SE_PRNG *prng, uint8_t *seed_in)
     ssize_t ret = getrandom((void *)(&(prng->seed[0])), SE_PRNG_SEED_BYTE_COUNT, 0);
     se_assert(ret == SE_PRNG_SEED_BYTE_COUNT);
 #elif defined(SE_RAND_NRF5)
-    ret_code_t ret_val =
-        nrf_crypto_rng_vector_generate(prng->seed, SE_PRNG_SEED_BYTE_COUNT);
+    ret_code_t ret_val = nrf_crypto_rng_vector_generate(prng->seed, SE_PRNG_SEED_BYTE_COUNT);
     if (ret_val != NRF_SUCCESS)
     {
         printf("Error: Something went wrong with nrf_crypto_rng_vector_generate()\n");
@@ -64,7 +63,7 @@ inline void prng_randomize_reset(SE_PRNG *prng, uint8_t *seed_in)
 #else
     // -- This should only be used for debugging!!
     memset(&(prng->seed[0]), 0, SE_PRNG_SEED_BYTE_COUNT);
-    prng->seed[0] = 1;
+    // prng->seed[0] = 1;
 #endif
 }
 
@@ -93,8 +92,8 @@ inline void prng_fill_buffer(size_t byte_count, SE_PRNG *prng, void *buffer)
 
 /**
 Clears the values (both seed and counter) of a prng instance to 0.
-Clears the bit that ties prng to a custom seed (so next prng_randomize_reset *will*
-generate a random seed)
+Clears the bit that ties prng to a custom seed (so next prng_randomize_reset *will* generate a
+random seed)
 
 @param[in,out] prng  PRNG instance to clear
 */

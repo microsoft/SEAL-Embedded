@@ -29,8 +29,8 @@ For the following, n is the polynomial ring degree.
 @param c1_ptr             2nd component of a ciphertext for a particular prime
 @param index_map_ptr      Index map values
 @param ntt_roots_ptr      Storage for NTT roots
-@param ntt_pte_ptr        Used for adding the plaintext to the error. If asymmetric, this
-is also used for ntt(u) and ntt(e1).
+@param ntt_pte_ptr        Used for adding the plaintext to the error.
+                          If asymmetric, this is also used for ntt(u) and ntt(e1).
 @param e1_ptr             Second error polynomial (unused in symmetric case)
 */
 typedef struct SE_PTRS
@@ -52,8 +52,8 @@ typedef struct SE_PTRS
 } SE_PTRS;
 
 /**
-Computes the values for the index map. This corresponds to the "pi" inverse projection
-symbol in the CKKS paper, merged with the bit-reversal required for the ifft/fft.
+Computes the values for the index map. This corresponds to the "pi" inverse projection symbol in the
+CKKS paper, merged with the bit-reversal required for the ifft/fft.
 
 Size req: 'index_map' must constain space for n uint16_t elements.
 
@@ -63,14 +63,15 @@ Size req: 'index_map' must constain space for n uint16_t elements.
 void ckks_calc_index_map(const Parms *parms, uint16_t *index_map);
 
 /**
-Sets the parameters according to the request polynomial ring degree. Also sets the index
-map if required (based on index map option defined). This should be called once during
-memory allocation to setup the parameters.
+Sets the parameters according to the request polynomial ring degree. Also sets the index map if
+required (based on index map option defined). This should be called once during memory allocation to
+setup the parameters.
 
-Note: index_map is non-const in case SE_INDEX_MAP_LOAD is defined.
+Note: index_map is non-const in case SE_INDEX_MAP_LOAD is defined (or, if
+SE_INDEX_MAP_LOAD_PERSIST_SYM_LOAD_ASYM is defined and asymmetric encryption is used).
 
-Size req: If 'SE_INDEX_MAP_LOAD' is defined, index_map must constain space for n uint16_t
-elements.
+Size req: If index map needs to be loaded (see 'Note' above), index_map must constain
+space for n uint16_t elements.
 
 @param[in]  degree     Desired polynomial ring degree.
 @param[in]  nprimes    Desired number of primes
@@ -80,46 +81,47 @@ elements.
 void ckks_setup(size_t degree, size_t nprimes, uint16_t *index_map, Parms *parms);
 
 /**
-Sets the parameters according to request custom parameters. Also sets the index map if
-required (based on index map option defined). This should be called once during memory
-allocation to setup the parameters. If either 'modulus_vals' or 'ratios' is NULL, uses
-regular (non-custom) ckks_setup instead.
+Sets the parameters according to request custom parameters. Also sets the index map if required
+(based on index map option defined). This should be called once during memory allocation to setup
+the parameters. If either 'modulus_vals' or 'ratios' is NULL, uses regular (non-custom) ckks_setup
+instead.
 
-Note: index_map is non-const in case SE_INDEX_MAP_LOAD is defined.
+Note: index_map is non-const in case SE_INDEX_MAP_LOAD is defined (or, if
+SE_INDEX_MAP_LOAD_PERSIST_SYM_LOAD_ASYM is defined and asymmetric encryption is used).
 
-Size req: If 'SE_INDEX_MAP_LOAD' is defined, index_map must constain space for n uint16_t
-elements.
+Size req: If index map needs to be loaded (see 'Note' above), index_map must constain space for n
+uint16_t elements.
 
 @param[in]  degree        Desired polynomial ring degree.
 @param[in]  nprimes       Desired number of primes
 @param[in]  modulus_vals  An array of nprimes type-ZZ modulus values.
 @param[in]  ratios        An array of const_ratio values for each custom modulus value
-(high word, followed by low word).
+                          (high word, followed by low word).
 @param[out] index_map     [Optional]. Pointer to index map values buffer
 @param[out] parms         Parameters instance
 */
-void ckks_setup_custom(size_t degree, size_t nprimes, const ZZ *modulus_vals,
-                       const ZZ *ratios, uint16_t *index_map, Parms *parms);
+void ckks_setup_custom(size_t degree, size_t nprimes, const ZZ *modulus_vals, const ZZ *ratios,
+                       uint16_t *index_map, Parms *parms);
 
 /**
 Resets the encryption parameters. Should be called once per encode-encrypt sequence to set
-curr_modulus_idx back to the start of the modulus chain. Does not need to be called the
-very first time after ckks_setup_parms is called, however.
+curr_modulus_idx back to the start of the modulus chain. Does not need to be called the very first
+time after ckks_setup_parms is called, however.
 
 @param[in,out] parms  Parameters set by ckks_setup
 */
 void ckks_reset_primes(Parms *parms);
 
 /**
-CKKS encoding base (w/o respect to a particular modulus). Should be called once per
-encode-encrypt sequence. Encoding can fail for certain inputs, so returns a value
-indicating success or failure.
+CKKS encoding base (w/o respect to a particular modulus). Should be called once per encode-encrypt
+sequence. Encoding can fail for certain inputs, so returns a value indicating success or failure.
 
-Note: index_map is non-const in case SE_INDEX_MAP_LOAD is defined.
+Note: index_map is non-const in case SE_INDEX_MAP_LOAD is defined (or, if
+SE_INDEX_MAP_LOAD_PERSIST_SYM_LOAD_ASYM is defined and asymmetric encryption is used).
 
-Size req: 'values' can contain at most n/2 slots (i.e. n/2 ZZ values), where n is the
-polynomial ring degree. 'conj_vals' must contain space for n double complex values. If
-'SE_INDEX_MAP_LOAD' is defined, index_map must constain space for n uint16_t elements.
+Size req: 'values' can contain at most n/2 slots (i.e. n/2 ZZ values), where n is the polynomial
+ring degree. 'conj_vals' must contain space for n double complex values. If index map needs to be
+loaded (see 'Note' above), index_map must constain space for n uint16_t elements.
 
 @param[in]  parms       Parameters set by ckks_setup
 @param[in]  values      Initial message array with (up to) n/2 slots
@@ -130,8 +132,7 @@ polynomial ring degree. 'conj_vals' must contain space for n double complex valu
 @returns                True on success, False on failure
 */
 bool ckks_encode_base(const Parms *parms, const flpt *values, size_t values_len,
-                      uint16_t *index_map, double complex *ifft_roots,
-                      double complex *conj_vals);
+                      uint16_t *index_map, double complex *ifft_roots, double complex *conj_vals);
 
 /**
 Reduces all values in conj_vals_int modulo the current modulus and stores result in out.
@@ -188,8 +189,7 @@ Prints the relative positions of various objects.
 @param[in] n        Polynomial ring degree
 @param[in] sym      Set to 1 if in symmetric mode
 */
-void se_print_relative_positions(const ZZ *st, const SE_PTRS *se_ptrs, size_t n,
-                                 bool sym);
+void se_print_relative_positions(const ZZ *st, const SE_PTRS *se_ptrs, size_t n, bool sym);
 
 /**
 Prints the addresses of various objects.
@@ -233,50 +233,57 @@ void print_ckks_mempool_size(void);
 
 // -- Calculate mempool size for no-malloc case
 #ifdef SE_IFFT_OTF
-    #if defined(SE_NTT_ONE_SHOT) || defined(SE_NTT_REG)
-        #define MEMPOOL_SIZE_BASE 5 * SE_DEGREE_N
-    #elif defined(SE_NTT_FAST)
-        #define MEMPOOL_SIZE_BASE 7 * SE_DEGREE_N
-    #else
-        #define MEMPOOL_SIZE_BASE 4 * SE_DEGREE_N
-    #endif
+#if defined(SE_NTT_ONE_SHOT) || defined(SE_NTT_REG)
+#define MEMPOOL_SIZE_BASE 5 * SE_DEGREE_N
+#elif defined(SE_NTT_FAST)
+#define MEMPOOL_SIZE_BASE 7 * SE_DEGREE_N
 #else
-    #define MEMPOOL_SIZE_BASE 8 * SE_DEGREE_N
+#define MEMPOOL_SIZE_BASE 4 * SE_DEGREE_N
+#endif
+#else
+#define MEMPOOL_SIZE_BASE 8 * SE_DEGREE_N
 #endif
 
-#if defined(SE_INDEX_MAP_PERSIST) || defined(SE_INDEX_MAP_LOAD_PERSIST)
-    #define SE_INDEX_MAP_PERSIST_SIZE SE_DEGREE_N / 2
+#if defined(SE_INDEX_MAP_PERSIST) || defined(SE_INDEX_MAP_LOAD_PERSIST) || \
+    defined(SE_INDEX_MAP_LOAD_PERSIST_SYM_LOAD_ASYM) || defined(SE_SK_INDEX_MAP_SHARED)
+#define SE_INDEX_MAP_PERSIST_SIZE_sym SE_DEGREE_N / 2
 #else
-    #define SE_INDEX_MAP_PERSIST_SIZE 0
+#define SE_INDEX_MAP_PERSIST_SIZE_sym 0
+#endif
+
+#ifdef SE_INDEX_MAP_LOAD_PERSIST_SYM_LOAD_ASYM
+#define SE_INDEX_MAP_PERSIST_SIZE_asym 0
+#else
+#define SE_INDEX_MAP_PERSIST_SIZE_asym SE_INDEX_MAP_PERSIST_SIZE_sym
 #endif
 
 #ifdef SE_SK_PERSISTENT
-    #define SK_PERSIST_SIZE SE_DEGREE_N / 16
+#define SK_PERSIST_SIZE SE_DEGREE_N / 16
 #else
-    #define SK_PERSIST_SIZE 0
+#define SK_PERSIST_SIZE 0
 #endif
 
 #ifdef SE_MEMPOOL_ALLOC_VALUES
-    #define VALUES_ALLOC_SIZE SE_DEGREE_N / 2
+#define VALUES_ALLOC_SIZE SE_DEGREE_N / 2
 #else
-    #define VALUES_ALLOC_SIZE 0
+#define VALUES_ALLOC_SIZE 0
 #endif
 
 #define MEMPOOL_SIZE_sym \
-    MEMPOOL_SIZE_BASE + SE_INDEX_MAP_PERSIST_SIZE + SK_PERSIST_SIZE + VALUES_ALLOC_SIZE
+    MEMPOOL_SIZE_BASE + SE_INDEX_MAP_PERSIST_SIZE_sym + SK_PERSIST_SIZE + VALUES_ALLOC_SIZE
 
 #ifdef SE_IFFT_OTF
-    #define MEMPOOL_SIZE_BASE_Asym \
-        MEMPOOL_SIZE_BASE + SE_DEGREE_N + SE_DEGREE_N / 4 + SE_DEGREE_N / 16
+#define MEMPOOL_SIZE_BASE_Asym MEMPOOL_SIZE_BASE + SE_DEGREE_N + SE_DEGREE_N / 4 + SE_DEGREE_N / 16
+// 4n + n + n + n/4 + n/16
 #else
-    #define MEMPOOL_SIZE_BASE_Asym MEMPOOL_SIZE_BASE
+#define MEMPOOL_SIZE_BASE_Asym MEMPOOL_SIZE_BASE
 #endif
 
 #define MEMPOOL_SIZE_Asym \
-    MEMPOOL_SIZE_BASE_Asym + SE_INDEX_MAP_PERSIST_SIZE + VALUES_ALLOC_SIZE
+    MEMPOOL_SIZE_BASE_Asym + SE_INDEX_MAP_PERSIST_SIZE_asym + VALUES_ALLOC_SIZE
 
 #ifdef SE_ENCRYPT_TYPE_SYMMETRIC
-    #define MEMPOOL_SIZE MEMPOOL_SIZE_sym
+#define MEMPOOL_SIZE MEMPOOL_SIZE_sym
 #else
-    #define MEMPOOL_SIZE MEMPOOL_SIZE_Asym
+#define MEMPOOL_SIZE MEMPOOL_SIZE_Asym
 #endif

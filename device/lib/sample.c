@@ -9,7 +9,7 @@
 
 #include "defines.h"
 #include "parameters.h"
-// #include "util_print.h" // TODO: Including this breaks things
+#include "util_print.h"  // TODO: Including this breaks things?
 
 #ifdef SE_RAND_NRF5
 #include "nrf_crypto.h"
@@ -116,12 +116,13 @@ void expand_poly_ternary(const ZZ *src, const Parms *parms, ZZ *dest)
     ZZ q           = parms->curr_modulus->value;
 
     // -- Debugging
-    // print_poly("src", src, n);
+    // print_poly_ternary_full("src", src, n, true);
 
     // -- Fill in back first so we don't overwrite any values
     // -- Need to be careful with overflow and backwards loops
     for (size_t i = n; i > 0; i--)
     {
+        // printf("current idx: %zu\n", i-1); // debugging
         ZZ val      = get_small_poly_idx_expanded(src, i - 1, q);
         dest[i - 1] = val;
     }
@@ -129,6 +130,8 @@ void expand_poly_ternary(const ZZ *src, const Parms *parms, ZZ *dest)
 
 void expand_poly_ternary_inpl(ZZ *poly, const Parms *parms)
 {
+    // -- Debugging
+    // print_poly_ternary_full("src", poly, parms->coeff_count, true);
     expand_poly_ternary(poly, parms, poly);
 }
 
@@ -200,10 +203,7 @@ void sample_small_poly_ternary_prng_k(size_t k, PolySizeType n, SE_PRNG *prng, Z
         for (size_t i = 0; i < i_stop; i++)
         {
             uint8_t rand_val = buffer[i];
-            while (rand_val >= max_multiple)
-            {
-                prng_fill_buffer(1, prng, (void *)&rand_val);
-            }
+            while (rand_val >= max_multiple) { prng_fill_buffer(1, prng, (void *)&rand_val); }
 #ifdef DEBUG_EASYMOD
             uint8_t rand_ternary = rand_val % 3;
 #else
@@ -269,8 +269,8 @@ static inline int8_t hamming_weight(uint8_t value)
 }
 
 /**
-Helper function to get the cbd sample (from a cbd w/ stddev 3.24) from 6 random bytes
-(non-modulo reduced)
+Helper function to get the cbd sample (from a cbd w/ stddev 3.24) from 6 random bytes (non-modulo
+reduced)
 
 @param[in] x  Six random bytes
 @returns      A (non-modulo-reduced) cbd sample
@@ -300,7 +300,7 @@ void sample_poly_cbd_generic_prng_k(size_t k, PolySizeType n, SE_PRNG *prng, int
     for (size_t j = 0; j < n; j += k)
     {
         // -- Every 42 bits (6 bytes) generates a sample
-        uint8_t buffer[6 * k];  // Generate k samples at once
+        uint8_t buffer[6 * k]; // Generate k samples at once
         prng_fill_buffer(6 * k, prng, (void *)buffer);
 
         for (size_t i = 0; i < k; i++) { poly[i + j] = get_cbd_val(buffer + 6 * i); }
@@ -332,13 +332,12 @@ void sample_add_poly_cbd_generic_inpl(int64_t *poly, PolySizeType n, SE_PRNG *pr
 }
 
 /*
-void sample_add_poly_cbd_generic_inpl_prng_k(int64_t *poly, size_t k, PolySizeType n,
-                                             SE_PRNG *prng)
+void sample_add_poly_cbd_generic_inpl_prng_k(int64_t *poly, size_t k, PolySizeType n, SE_PRNG *prng)
 {
     for (size_t j = 0; j < n; j += k)
     {
         // -- Every 42 bits (6 bytes) generates a sample
-        uint8_t buffer[6 * k];  // Generate k samples at once
+        uint8_t buffer[6 * k]; // Generate k samples at once
         prng_fill_buffer(6 * k, prng, (void *)buffer);
         for (size_t i = 0; i < k; i++) { poly[i + j] += get_cbd_val(buffer + 6 * i); }
     }

@@ -19,14 +19,14 @@ Polynomial modular multiplication.
 #include "util_print.h"
 
 /**
-Helper funciton to multiply two ring polynomials using schoolbook multiplication, without
-the final polynomial reduction. The result polynomial will be returned in the first n ZZ
-elements pointed to by 'res'.
+Helper funciton to multiply two ring polynomials using schoolbook multiplication, without the final
+polynomial reduction. The result polynomial will be returned in the first n ZZ elements pointed to
+by 'res'.
 
 Note: This function is *not* constant-time, and is mainly useful for testing.
 
-Space req: 'res' must contain space for 2n ZZ elements, where each input polynomial
-consists of n ZZ elements (each).
+Space req: 'res' must contain space for 2n ZZ elements, where each input polynomial consists of n ZZ
+elements (each).
 
 @param[in]  a    Input polynomial 1
 @param[in]  b    Input polynomial 2
@@ -34,8 +34,8 @@ consists of n ZZ elements (each).
 @param[in]  mod  Modulus
 @param[out] res  Sized-(2*sizeof(ZZ)) result of [a . b]_mod
 */
-void poly_mult_mod_sb_not_reduced(const ZZ *a, const ZZ *b, PolySizeType n,
-                                  const Modulus *mod, ZZ *res)
+void poly_mult_mod_sb_not_reduced(const ZZ *a, const ZZ *b, PolySizeType n, const Modulus *mod,
+                                  ZZ *res)
 {
     memset(res, 0, 2 * n * sizeof(ZZ));  // This is necessary
 
@@ -51,8 +51,7 @@ void poly_mult_mod_sb_not_reduced(const ZZ *a, const ZZ *b, PolySizeType n,
 
 /**
 Helper function to perform the final polynomial reduction.
-Initial address of 'a' and initial address of 'res' may be the same (see:
-poly_reduce_inpl).
+Initial address of 'a' and initial address of 'res' may be the same (see: poly_reduce_inpl).
 
 Space req: 'res' must contain space for n ZZ elements (for 'a' with 2n coefficients)
 
@@ -88,8 +87,7 @@ void poly_reduce_inpl(ZZ *a, PolySizeType n, const Modulus *mod)
     }
 }
 
-void poly_mult_mod_sb(const ZZ *a, const ZZ *b, PolySizeType n, const Modulus *mod,
-                      ZZ *res)
+void poly_mult_mod_sb(const ZZ *a, const ZZ *b, PolySizeType n, const Modulus *mod, ZZ *res)
 {
     // -- Multiplication (not reduced)
     poly_mult_mod_sb_not_reduced(a, b, n, mod, res);

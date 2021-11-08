@@ -19,7 +19,6 @@ using namespace std;
 using namespace seal;
 using namespace seal::util;
 
-// #define HIGH_BYTE_FIRST // big endian
 // #define DEBUG_EASYMOD // See: SEAL-Embedded for explanation
 
 // ===============================================================
@@ -41,20 +40,20 @@ void sk_bin_file_save(string fpath, string str_fpath, const SEALContext &context
         assert(sk.data().is_ntt_form() == false);
     }
 
-    fstream outfile(fpath.c_str(), ios::out | ios::binary | ios::trunc);
-    fstream outfile2;
+    fstream file(fpath.c_str(), ios::out | ios::binary | ios::trunc);
+    fstream file2;
     if (use_str_fpath)
     {
-        outfile2.open(str_fpath.c_str(), ios::out | ios::trunc);
-        outfile2 << "#pragma once\n\n#include \"defines.h\"\n\n";
-        outfile2 << "#if defined(SE_DATA_FROM_CODE_COPY) || "
-                    "defined(SE_DATA_FROM_CODE_DIRECT)\n";
-        outfile2 << "\n#include <stdint.h>\n\n";
+        file2.open(str_fpath.c_str(), ios::out | ios::trunc);
+        file2 << "#pragma once\n\n#include \"defines.h\"\n\n";
+        file2 << "#if defined(SE_DATA_FROM_CODE_COPY) || "
+                 "defined(SE_DATA_FROM_CODE_DIRECT)\n";
+        file2 << "\n#include <stdint.h>\n\n";
         // -- # bytes = n vals * (2 bits / val) * (1 byte / 8 bits)
         size_t nbytes = n / 4;
-        outfile2 << "#ifdef SE_DATA_FROM_CODE_COPY\nconst\n#endif" << endl;
-        outfile2 << "// -- Secret key for polynomial ring degree = " << n << "\n";
-        outfile2 << "uint8_t secret_key[" << nbytes << "] = { ";
+        file2 << "#ifdef SE_DATA_FROM_CODE_COPY\nconst\n#endif" << endl;
+        file2 << "// -- Secret key for polynomial ring degree = " << n << "\n";
+        file2 << "uint8_t secret_key[" << nbytes << "] = { ";
     }
     for (size_t i = 0; i < n; i += 4)
     {
@@ -62,7 +61,7 @@ void sk_bin_file_save(string fpath, string str_fpath, const SEALContext &context
         for (size_t j = 0; ((i + j) < n) && (j < 4); j++)
         {
             uint64_t sk_val = sk_ptr[i + j];
-            if (i < 8) cout << "sk_val: " << sk_val << endl;
+            // if (i < 8) cout << "sk_val: " << sk_val << endl;
 #ifdef DEBUG_EASYMOD
             // -- Mapping: 0 --> 0, 1 --> 1, q-1 --> 2
             uint8_t val = (sk_val > 1) ? 2 : (uint8_t)sk_val;
@@ -73,21 +72,28 @@ void sk_bin_file_save(string fpath, string str_fpath, const SEALContext &context
 #endif
             byte |= val << (6 - 2 * j);
         }
-        // TODO: make this more compact?
-        outfile.put(static_cast<char>(byte));
+        file.put(static_cast<char>(byte));
         if (use_str_fpath)
         {
             // cout << "byte: " << to_string(byte) << endl;
             string next_str = ((i + 4) < n) ? ", " : "};\n";
-            outfile2 << to_string(byte) + next_str;
-            if (!(i % 64) && i) outfile2 << "\n";
+            assert((byte & 0b11) != 0b11);
+            assert(((byte >> 2) & 0b11) != 0b11);
+            assert(((byte >> 4) & 0b11) != 0b11);
+            assert(((byte >> 6) & 0b11) != 0b11);
+            if (byte < 10)
+                file2 << "  ";
+            else if (byte < 100)
+                file2 << " ";
+            file2 << to_string(byte) + next_str;
+            if (!(i % 64)) file2 << "\n";
         }
     }
-    outfile.close();
+    file.close();
     if (use_str_fpath)
     {
-        outfile2 << "#endif" << endl;
-        outfile2.close();
+        file2 << "#endif" << endl;
+        file2.close();
     }
 
     if (is_ntt)
@@ -99,12 +105,12 @@ void sk_bin_file_save(string fpath, string str_fpath, const SEALContext &context
 
 void sk_bin_file_load(string fpath, const SEALContext &context, SecretKey &sk)
 {
-    auto &sk_parms            = context.key_context_data()->parms();
-    auto &coeff_modulus       = sk_parms.coeff_modulus();
-    size_t coeff_modulus_size = coeff_modulus.size();
-    size_t n                  = sk_parms.poly_modulus_degree();
-    auto sk_ptr               = get_sk_arr_ptr(sk);
-    bool is_ntt               = sk.data().is_ntt_form();
+    auto &sk_parms      = context.key_context_data()->parms();
+    auto &coeff_modulus = sk_parms.coeff_modulus();
+    size_t nprimes      = coeff_modulus.size();
+    size_t n            = sk_parms.poly_modulus_degree();
+    auto sk_ptr         = get_sk_arr_ptr(sk);
+    bool is_ntt         = sk.data().is_ntt_form();
 
     // -- Make sure sk is not in NTT form
     if (is_ntt)
@@ -114,11 +120,11 @@ void sk_bin_file_load(string fpath, const SEALContext &context, SecretKey &sk)
     }
 
     // print_poly("sk_before  ", sk_ptr, 8);
-    fstream outfile(fpath.c_str(), ios::in | ios::binary);
+    fstream file(fpath.c_str(), ios::in | ios::binary);
     for (size_t i = 0; i < n; i += 4)
     {
         char byte;
-        outfile.get(byte);
+        file.get(byte);
         // cout << "byte[" << i << "]: " << hex << unsigned(byte & 0xFF) << dec << endl;
         for (size_t j = 0; ((i + j) < n) && (j < 4); j++)
         {
@@ -128,35 +134,28 @@ void sk_bin_file_load(string fpath, const SEALContext &context, SecretKey &sk)
             // -- Mapping: 0 --> 0, 1 --> 1, 2 --> q-1
             if (val > 1)
             {
-                for (size_t k = 0; k < coeff_modulus_size; k++)
-                {
-                    sk_ptr[(i + j) + k * n] = coeff_modulus[k].value() - 1;
-                }
+                for (size_t k = 0; k < nprimes; k++)
+                { sk_ptr[(i + j) + k * n] = coeff_modulus[k].value() - 1; }
             }
             else
             {
-                for (size_t k = 0; k < coeff_modulus_size; k++) { sk_ptr[(i + j) + k * n] = val; }
+                for (size_t k = 0; k < nprimes; k++) { sk_ptr[(i + j) + k * n] = val; }
             }
 #else
             // -- Mapping: 0 --> q-1, 1 --> 0, 2 --> 1
             if (val > 0)
             {
-                for (size_t k = 0; k < coeff_modulus_size; k++)
-                {
-                    sk_ptr[(i + j) + k * n] = val - 1;
-                }
+                for (size_t k = 0; k < nprimes; k++) { sk_ptr[(i + j) + k * n] = val - 1; }
             }
             else
             {
-                for (size_t k = 0; k < coeff_modulus_size; k++)
-                {
-                    sk_ptr[(i + j) + k * n] = coeff_modulus[k].value() - 1;
-                }
+                for (size_t k = 0; k < nprimes; k++)
+                { sk_ptr[(i + j) + k * n] = coeff_modulus[k].value() - 1; }
             }
 #endif
         }
     }
-    outfile.close();
+    file.close();
     // print_poly("sk_after   ", sk_ptr, n*4);
     // print_poly("sk_after   ", sk_ptr, 8);
     // print_poly("sk_after   ", sk_ptr + n, 8);
@@ -172,66 +171,74 @@ void sk_bin_file_load(string fpath, const SEALContext &context, SecretKey &sk)
 }
 
 void pk_bin_file_save(string dirpath, const SEALContext &context, PublicKeyWrapper &pk_wr,
-                      bool incl_sp, bool append)
+                      bool incl_sp, bool high_byte_first, bool append)
 {
-    bool large_modulus = 0;
-    bool is_ntt        = pk_wr.is_ntt;
+    bool is_ntt = pk_wr.is_ntt;
     assert(is_ntt);  // Make sure we start out in ntt form
     assert(pk_wr.pk);
 
-    bool incl_sp_sf = false;  // No need to include the special prime for the headers
+    size_t n       = pk_wr.pk->data().poly_modulus_degree();
+    size_t nprimes = pk_wr.pk->data().coeff_modulus_size();
 
-    size_t n                  = pk_wr.pk->data().poly_modulus_degree();
-    size_t coeff_modulus_size = pk_wr.pk->data().coeff_modulus_size();
-    assert(coeff_modulus_size >= 2);
+    // -- No need to include the special prime for the headers
+    bool incl_sp_sf = (nprimes == 1) ? true : false;
 
     string fpath3 = dirpath + "str_pk_addr_array.h";
-    fstream outfile3(fpath3.c_str(), ios::out | ios::trunc);
+    fstream file3(fpath3.c_str(), ios::out | ios::trunc);
+    size_t string_file_nprimes = incl_sp_sf ? nprimes : nprimes - 1;
 
-    outfile3 << "#pragma once\n\n#include \"defines.h\"\n\n";
-    outfile3 << "#if defined(SE_DATA_FROM_CODE_COPY) || defined(SE_DATA_FROM_CODE_DIRECT)\n\n";
+    file3 << "#pragma once\n\n#include \"defines.h\"\n\n";
+    file3 << "#if defined(SE_DATA_FROM_CODE_COPY) || defined(SE_DATA_FROM_CODE_DIRECT)\n\n";
 
     stringstream pk_addr_str;
-
-    size_t string_file_coeff_modulus_size =
-        incl_sp_sf ? coeff_modulus_size : coeff_modulus_size - 1;
-    pk_addr_str << "ZZ* pk_prime_addr[" << string_file_coeff_modulus_size << "][2] = \n{\n";
+    pk_addr_str << "ZZ* pk_prime_addr[" << string_file_nprimes << "][2] = \n{\n";
 
     for (size_t outer = 0; outer < 2; outer++)
     {
         assert(pk_wr.pk->data().size() == 2);
         assert(sizeof(pk_wr.pk->data().data()[0]) == sizeof(uint64_t));
 
-        for (size_t t = 0; t < coeff_modulus_size; t++)
+        for (size_t t = 0; t < nprimes; t++)
         {
+            auto q             = context.key_context_data()->parms().coeff_modulus()[t].value();
+            bool large_modulus = (log2(q) > 32) ? true : false;
+
+            assert(((t <= (nprimes - 1)) && (log2(q) <= 30)) ||
+                   ((t == nprimes - 1) && (log2(q) <= 64) && (nprimes != 1)));
+
             for (size_t k = 0; k < 2; k++)  // pk0, pk1
             {
                 string fpath_common = "pk" + to_string(k) + "_";
                 if (pk_wr.is_ntt) fpath_common += "ntt_";
-
-                auto coeff_modulus = context.key_context_data()->parms().coeff_modulus()[t].value();
-                fpath_common += to_string(n) + "_" + to_string(coeff_modulus);
+                fpath_common += to_string(n) + "_" + to_string(q);
 
                 string fpath  = dirpath + fpath_common + ".dat";
                 string fpath2 = dirpath + "str_" + fpath_common + ".h";
                 cout << "writing to files: " << fpath << ", " << fpath2 << endl;
 
-                if (outer == 0 && t < string_file_coeff_modulus_size)
-                {
-                    outfile3 << "   #include \"str_" << fpath_common + ".h\"" << endl;
-                }
+                if (outer == 0 && t < string_file_nprimes)
+                { file3 << "   #include \"str_" << fpath_common + ".h\"" << endl; }
 
                 auto open_mode_type = ios::out | ios::binary | (append ? ios::app : ios::trunc);
-                fstream outfile(fpath.c_str(), open_mode_type);
+                fstream file(fpath.c_str(), open_mode_type);
 
-                fstream outfile2(fpath2.c_str(), ios::out | ios::trunc);
-                size_t num_ZZ_elements = n;
-                outfile2 << "#pragma once\n\n#include \"defines.h\"\n\n";
-                outfile2 << "#if defined(SE_DATA_FROM_CODE_COPY) || "
-                            "defined(SE_DATA_FROM_CODE_DIRECT)\n";
-                outfile2 << "#ifdef SE_DATA_FROM_CODE_COPY\nconst\n#endif" << endl;
-                outfile2 << "ZZ pk" + to_string(k) + "_prime" << to_string(t);
-                outfile2 << "[" << num_ZZ_elements << "] = { \n";
+                fstream file2(fpath2.c_str(), ios::out | ios::trunc);
+                size_t nvals = n;
+                file2 << "#pragma once\n\n#include \"defines.h\"\n\n";
+                if (large_modulus)
+                {
+                    file2 << "// -- Note: This file uses >30-bit primes and cannot";
+                    file2 << " be used with the SEAL-Embedded device library." << endl;
+                }
+                file2 << "#if defined(SE_DATA_FROM_CODE_COPY) || "
+                         "defined(SE_DATA_FROM_CODE_DIRECT)\n";
+                file2 << "#ifdef SE_DATA_FROM_CODE_COPY\nconst\n#endif" << endl;
+                if (large_modulus)
+                    file2 << "uint64_t ";
+                else
+                    file2 << "ZZ ";
+                file2 << "pk" + to_string(k) + "_prime" << to_string(t);
+                file2 << "[" << nvals << "] = { \n";
 
                 uint64_t *ptr = get_pk_arr_ptr(pk_wr, k);
                 for (size_t i = 0; i < n; i++)
@@ -241,38 +248,38 @@ void pk_bin_file_save(string dirpath, const SEALContext &context, PublicKeyWrapp
                     for (size_t j = 0; j < stop_j; j++)  // write one byte at a time
                     {
                         // -- & with 0xFF to prevent 'byte' from being sign extended
-#ifdef HIGH_BYTE_FIRST
-                        uint8_t byte = (data >> (56 - 8 * j)) & 0xFF;
-#else
-                        uint8_t byte = (data >> (8 * j)) & 0xFF;
-                        outfile.put((char)byte);
-#endif
+                        uint8_t byte = 0;
+                        if (high_byte_first) { byte = (data >> (56 - 8 * j)) & 0xFF; }
+                        else
+                        {
+                            byte = (data >> (8 * j)) & 0xFF;
+                            file.put((char)byte);
+                        }
                     }
 
                     // -- Write to string file
                     uint32_t val    = data & 0xFFFFFFFF;
                     string next_str = ((i + 1) < n) ? ", " : "};\n";
-                    outfile2 << hex << "0x" << (large_modulus ? data : val) << next_str;
+                    file2 << std::hex << "0x" << (large_modulus ? data : val) << std::dec
+                          << next_str;
                     size_t row_break = large_modulus ? 4 : 8;
-                    if (!(i % row_break)) outfile2 << "\n";
+                    if (!(i % row_break)) file2 << "\n";
                 }
-                outfile.close();
-                outfile2 << "#endif" << endl;
-                outfile2.close();
+                file.close();
+                file2 << "#endif" << endl;
+                file2.close();
             }
-            // TODO: get rid of special prime stuff since this must be included as
-            // part of the three primes...
             // -- No need to include special prime in string files
-            if (outer == 0 && t < string_file_coeff_modulus_size)
+            if (outer == 0 && t < string_file_nprimes)
             {
                 pk_addr_str << "    {&(pk0_prime" << to_string(t) << "[0]),";
                 pk_addr_str << " &(pk1_prime" << to_string(t) << "[0])}";
-                if (t == string_file_coeff_modulus_size - 1)
+                if (t == string_file_nprimes - 1)
                     pk_addr_str << "\n};" << endl;
                 else
                     pk_addr_str << "," << endl;
             }
-            if (!incl_sp && t == (coeff_modulus_size - 2)) break;
+            if (!incl_sp && t == (nprimes - 2)) break;
         }
 
         if (pk_wr.is_ntt)  // Convert and write in non-ntt form
@@ -280,12 +287,12 @@ void pk_bin_file_save(string dirpath, const SEALContext &context, PublicKeyWrapp
             pk_to_non_ntt_form(context, pk_wr);
             assert(pk_wr.is_ntt == false);
         }
-        if (outer == 0) { outfile3 << "\n"; }
+        if (outer == 0) file3 << "\n";
     }
 
-    outfile3 << pk_addr_str.str();
-    outfile3 << "#endif" << endl;
-    outfile3.close();
+    file3 << pk_addr_str.str();
+    file3 << "#endif" << endl;
+    file3.close();
 
     if (is_ntt)
     {
@@ -295,10 +302,9 @@ void pk_bin_file_save(string dirpath, const SEALContext &context, PublicKeyWrapp
 }
 
 void pk_bin_file_load(string dirpath, const SEALContext &context, PublicKeyWrapper &pk_wr,
-                      bool incl_sp)
+                      bool incl_sp, bool high_byte_first)
 {
-    bool is_ntt        = pk_wr.is_ntt;
-    bool large_modulus = 0;
+    bool is_ntt = pk_wr.is_ntt;
     assert(pk_wr.pk);
 
     if (is_ntt)
@@ -310,19 +316,22 @@ void pk_bin_file_load(string dirpath, const SEALContext &context, PublicKeyWrapp
     assert(pk_wr.pk->data().size() == 2);
     assert(sizeof(pk_wr.pk->data().data()[0]) == sizeof(uint64_t));
 
-    size_t n                  = pk_wr.pk->data().poly_modulus_degree();
-    size_t coeff_modulus_size = pk_wr.pk->data().coeff_modulus_size();
-    assert(coeff_modulus_size >= 2);
+    size_t n       = pk_wr.pk->data().poly_modulus_degree();
+    size_t nprimes = pk_wr.pk->data().coeff_modulus_size();
 
-    for (size_t t = 0; t < coeff_modulus_size; t++)
+    for (size_t t = 0; t < nprimes; t++)
     {
+        auto q             = context.key_context_data()->parms().coeff_modulus()[t].value();
+        bool large_modulus = (log2(q) > 32) ? true : false;
+
+        assert(((t <= (nprimes - 1)) && (log2(q) <= 30)) ||
+               ((t == nprimes - 1) && (log2(q) <= 64) && (nprimes != 1)));
+
         for (size_t k = 0; k < 2; k++)
         {
             string fpath = dirpath + "pk" + to_string(k) + "_";
             if (pk_wr.is_ntt) fpath += "ntt_";
-
-            auto coeff_modulus = context.key_context_data()->parms().coeff_modulus()[t].value();
-            fpath += to_string(n) + "_" + to_string(coeff_modulus) + ".dat";
+            fpath += to_string(n) + "_" + to_string(q) + ".dat";
             cout << "reading from file: " << fpath << endl;
 
             fstream infile(fpath.c_str(), ios::in | ios::binary);
@@ -338,18 +347,21 @@ void pk_bin_file_load(string dirpath, const SEALContext &context, PublicKeyWrapp
                     infile.get(byte);
 
                     // -- & with 0xFF to prevent 'byte' from being sign extended
-#ifdef HIGH_BYTE_FIRST
-                    data <<= 8;
-                    data |= (byte & 0xFF);
-#else
-                    data |= ((uint64_t)(byte & 0xFF) << 8 * j);
-#endif
+                    if (high_byte_first)
+                    {
+                        data <<= 8;
+                        data |= (byte & 0xFF);
+                    }
+                    else
+                    {
+                        data |= ((uint64_t)(byte & 0xFF) << 8 * j);
+                    }
                 }
                 ptr[i + t * n] = data;
             }
             infile.close();
         }
-        if (!incl_sp && t == (coeff_modulus_size - 2)) break;
+        if (!incl_sp && t == (nprimes - 2)) break;
     }
 
     if (is_ntt)
@@ -424,12 +436,12 @@ void pk_seal_load(string fpath, const SEALContext &context, PublicKey &pk)
 
 streampos sk_string_file_load(string fpath, const SEALContext &context, SecretKey &sk)
 {
-    auto &sk_parms            = context.key_context_data()->parms();
-    auto &coeff_modulus       = sk_parms.coeff_modulus();
-    size_t coeff_modulus_size = coeff_modulus.size();
-    size_t n                  = sk_parms.poly_modulus_degree();
-    auto sk_ptr               = get_sk_arr_ptr(sk);
-    bool is_ntt               = sk.data().is_ntt_form();
+    auto &sk_parms      = context.key_context_data()->parms();
+    auto &coeff_modulus = sk_parms.coeff_modulus();
+    size_t nprimes      = coeff_modulus.size();
+    size_t n            = sk_parms.poly_modulus_degree();
+    auto sk_ptr         = get_sk_arr_ptr(sk);
+    bool is_ntt         = sk.data().is_ntt_form();
 
     // -- Make sure sk is not in NTT form
     // -- Note: this shouldn't run if we don't generate sk using keygenerator
@@ -439,7 +451,7 @@ streampos sk_string_file_load(string fpath, const SEALContext &context, SecretKe
         assert(sk.data().is_ntt_form() == false);
     }
 
-    auto filepos = poly_string_file_load(fpath, sk_ptr, 1);
+    auto filepos = poly_string_file_load(fpath, 1, sk_ptr);
 
     for (size_t i = 0; i < n; i++)
     {
@@ -447,26 +459,22 @@ streampos sk_string_file_load(string fpath, const SEALContext &context, SecretKe
 #ifdef DEBUG_EASYMOD
         if (val > 1)
         {
-            for (size_t j = 0; j < coeff_modulus_size; j++)
-            {
-                sk_ptr[i + j * n] = coeff_modulus[j].value() - 1;
-            }
+            for (size_t j = 0; j < nprimes; j++)
+            { sk_ptr[i + j * n] = coeff_modulus[j].value() - 1; }
         }
         else
         {
-            for (size_t j = 0; j < coeff_modulus_size; j++) { sk_ptr[i + j * n] = val; }
+            for (size_t j = 0; j < nprimes; j++) { sk_ptr[i + j * n] = val; }
         }
 #else
         if (val > 0)
         {
-            for (size_t j = 0; j < coeff_modulus_size; j++) { sk_ptr[i + j * n] = val - 1; }
+            for (size_t j = 0; j < nprimes; j++) { sk_ptr[i + j * n] = val - 1; }
         }
         else
         {
-            for (size_t j = 0; j < coeff_modulus_size; j++)
-            {
-                sk_ptr[i + j * n] = coeff_modulus[j].value() - 1;
-            }
+            for (size_t j = 0; j < nprimes; j++)
+            { sk_ptr[i + j * n] = coeff_modulus[j].value() - 1; }
         }
 #endif
     }
@@ -484,14 +492,12 @@ streampos sk_string_file_load(string fpath, const SEALContext &context, SecretKe
 streampos ct_string_file_load(string fpath, const SEALContext &context, Evaluator &evaluator,
                               Ciphertext &ct, streampos filepos_in)
 {
-    auto &ct_parms            = context.first_context_data()->parms();
-    auto &ct_parms_id         = context.first_parms_id();
-    size_t coeff_modulus_size = ct_parms.coeff_modulus().size();
-    size_t n                  = ct_parms.poly_modulus_degree();
-    bool is_ntt               = ct.is_ntt_form();
-
+    auto &ct_parms    = context.first_context_data()->parms();
+    auto &ct_parms_id = context.first_parms_id();
+    size_t ct_nprimes = ct_parms.coeff_modulus().size();
+    size_t n          = ct_parms.poly_modulus_degree();
+    bool is_ntt       = ct.is_ntt_form();
     assert(is_ntt);
-    assert(coeff_modulus_size == 3);
 
     // -- Ciphertext has two components
     ct.resize(context, ct_parms_id, 2);
@@ -506,17 +512,17 @@ streampos ct_string_file_load(string fpath, const SEALContext &context, Evaluato
     vector<uint64_t> ct_temp_1p(2 * n);
 
     streampos filepos = filepos_in;
-    for (size_t j = 0; j < coeff_modulus_size; j++)
+    for (size_t j = 0; j < ct_nprimes; j++)
     {
         // -- Load in two components at a time
-        filepos     = poly_string_file_load(fpath, ct_temp_1p, 2, filepos);
+        filepos     = poly_string_file_load(fpath, 2, ct_temp_1p, filepos);
         auto ct_ptr = get_ct_arr_ptr(ct);
 
         // -- Set c0 and c1 terms
         for (size_t i = 0; i < n; i++)
         {
-            ct_ptr[i + j * n]                          = ct_temp_1p[i];
-            ct_ptr[i + j * n + coeff_modulus_size * n] = ct_temp_1p[i + n];
+            ct_ptr[i + j * n]                  = ct_temp_1p[i];
+            ct_ptr[i + j * n + ct_nprimes * n] = ct_temp_1p[i + n];
         }
     }
     print_ct(ct, 8);

@@ -6,9 +6,7 @@
 */
 
 #include "defines.h"
-
 #ifdef SE_ENABLE_TIMERS
-
 #include "bench_common.h"
 #include "sample.h"
 #include "timer.h"
@@ -17,10 +15,10 @@
 void bench_sample_poly_cbd(void)
 {
 #ifdef SE_USE_MALLOC
-    size_t n    = 4096;
-    int8_t *vec = calloc(n, sizeof(int8_t));
+    const size_t n = 4096;
+    int8_t *vec    = calloc(n, sizeof(int8_t));
 #else
-    size_t n = SE_DEGREE_N;
+    const size_t n = SE_DEGREE_N;
     int8_t vec[SE_DEGREE_N];
 #endif
 
@@ -32,7 +30,7 @@ void bench_sample_poly_cbd(void)
     prng_randomize_reset(&prng, NULL);
 
     Timer timer;
-    size_t COUNT  = 10;
+    const size_t COUNT = 10;
     float t_total = 0, t_min = 0, t_max = 0, t_curr = 0;
     for (size_t b_itr = 0; b_itr < COUNT + 1; b_itr++)
     {
@@ -47,29 +45,35 @@ void bench_sample_poly_cbd(void)
     }
     print_time_vals(bench_name, t_curr, COUNT, &t_total, &t_min, &t_max);
 #ifdef SE_USE_MALLOC
-    free(vec);
+    if (vec)
+    {
+        free(vec);
+        vec = 0;
+    }
 #endif
 }
 
 void bench_sample_ternary_small(void)
 {
-    size_t n = 4096;
+#ifdef SE_USE_MALLOC
+    const size_t n = 4096;
+    ZZ *vec        = malloc(n / 4);
+#else
+    const size_t n = SE_DEGREE_N;
+    ZZ vec[SE_DEGREE_N / 4];
+#endif
+
     Parms parms;
     parms.small_u = 1;
     set_parms_ckks(n, 1, &parms);
 
-#ifdef SE_USE_MALLOC
-    ZZ *vec = malloc(n / 4);
-#else
-    ZZ vec[SE_DEGREE_N / 4];
-#endif
     ZZ *poly               = &(vec[0]);
     const char *bench_name = "sample poly ternary (small)";
     print_bench_banner(bench_name, &parms);
     SE_PRNG prng;
     prng_randomize_reset(&prng, NULL);
     Timer timer;
-    size_t COUNT  = 10;
+    const size_t COUNT = 10;
     float t_total = 0, t_min = 0, t_max = 0, t_curr = 0;
     for (size_t b_itr = 0; b_itr < COUNT + 1; b_itr++)
     {
@@ -84,21 +88,27 @@ void bench_sample_ternary_small(void)
     }
     print_time_vals(bench_name, t_curr, COUNT, &t_total, &t_min, &t_max);
 #ifdef SE_USE_MALLOC
-    free(vec);
+    if (vec)
+    {
+        free(vec);
+        vec = 0;
+    }
     delete_parameters(&parms);
 #endif
 }
 
 void bench_sample_uniform(void)
 {
-    size_t n = 4096;
-    Parms parms;
-    set_parms_ckks(n, 1, &parms);
 #ifdef SE_USE_MALLOC
-    ZZ *vec = calloc(n, sizeof(ZZ));
+    const size_t n = 4096;
+    ZZ *vec        = calloc(n, sizeof(ZZ));
 #else
+    const size_t n = SE_DEGREE_N;
     ZZ vec[SE_DEGREE_N];
 #endif
+
+    Parms parms;
+    set_parms_ckks(n, 1, &parms);
 
     ZZ *poly               = &(vec[0]);
     const char *bench_name = "sample poly uniform";
@@ -108,7 +118,7 @@ void bench_sample_uniform(void)
     prng_randomize_reset(&prng, NULL);
 
     Timer timer;
-    size_t COUNT  = 10;
+    const size_t COUNT = 10;
     float t_total = 0, t_min = 0, t_max = 0, t_curr = 0;
     for (size_t b_itr = 0; b_itr < COUNT + 1; b_itr++)
     {
@@ -123,7 +133,11 @@ void bench_sample_uniform(void)
     }
     print_time_vals(bench_name, t_curr, COUNT, &t_total, &t_min, &t_max);
 #ifdef SE_USE_MALLOC
-    free(vec);
+    if (vec)
+    {
+        free(vec);
+        vec = 0;
+    }
     delete_parameters(&parms);
 #endif
 }
@@ -136,7 +150,7 @@ void bench_prng_randomize_seed(void)
     SE_PRNG prng;
     Timer timer;
 
-    size_t COUNT  = 10;
+    const size_t COUNT = 10;
     float t_total = 0, t_min = 0, t_max = 0, t_curr = 0;
     for (size_t b_itr = 0; b_itr < COUNT + 1; b_itr++)
     {
@@ -154,13 +168,14 @@ void bench_prng_randomize_seed(void)
 
 void bench_prng_fill_buffer(void)
 {
-    size_t n               = 4096;
     const char *bench_name = "prng fill buffer";
     print_bench_banner(bench_name, 0);
 
 #ifdef SE_USE_MALLOC
-    ZZ *vec = calloc(n, sizeof(ZZ));
+    const size_t n = 4096;
+    ZZ *vec        = calloc(n, sizeof(ZZ));
 #else
+    const size_t n = SE_DEGREE_N;
     ZZ vec[SE_DEGREE_N];
 #endif
     ZZ *poly = &(vec[0]);
@@ -168,7 +183,7 @@ void bench_prng_fill_buffer(void)
     SE_PRNG prng;
 
     Timer timer;
-    size_t COUNT  = 10;
+    const size_t COUNT = 10;
     float t_total = 0, t_min = 0, t_max = 0, t_curr = 0;
     for (size_t b_itr = 0; b_itr < COUNT + 1; b_itr++)
     {
@@ -184,20 +199,24 @@ void bench_prng_fill_buffer(void)
     }
     print_time_vals(bench_name, t_curr, COUNT, &t_total, &t_min, &t_max);
 #ifdef SE_USE_MALLOC
-    free(vec);
+    if (vec)
+    {
+        free(vec);
+        vec = 0;
+    }
 #endif
 }
 
 void bench_prng_randomize_seed_fill_buffer(void)
 {
-    size_t n = 4096;
-
     const char *bench_name = "prng randomize + fill buffer";
     print_bench_banner(bench_name, 0);
 
 #ifdef SE_USE_MALLOC
-    ZZ *vec = calloc(n, sizeof(ZZ));
+    const size_t n = 4096;
+    ZZ *vec        = calloc(n, sizeof(ZZ));
 #else
+    const size_t n = SE_DEGREE_N;
     ZZ vec[SE_DEGREE_N];
 #endif
     ZZ *poly = &(vec[0]);
@@ -205,7 +224,7 @@ void bench_prng_randomize_seed_fill_buffer(void)
     SE_PRNG prng;
 
     Timer timer;
-    size_t COUNT  = 10;
+    const size_t COUNT = 10;
     float t_total = 0, t_min = 0, t_max = 0, t_curr = 0;
     for (size_t b_itr = 0; b_itr < COUNT + 1; b_itr++)
     {
@@ -221,7 +240,11 @@ void bench_prng_randomize_seed_fill_buffer(void)
     }
     print_time_vals(bench_name, t_curr, COUNT, &t_total, &t_min, &t_max);
 #ifdef SE_USE_MALLOC
-    free(vec);
+    if (vec)
+    {
+        free(vec);
+        vec = 0;
+    }
 #endif
 }
 #endif

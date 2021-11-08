@@ -6,7 +6,6 @@
 *.dat
 **/config.h
 **/adapter_output_data
-# device/lib/kri_data/*
 # adpater/thirdparty
 # **/data/
 

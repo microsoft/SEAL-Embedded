@@ -8,15 +8,15 @@
 #include "defines.h"
 
 #ifdef SE_ON_SPHERE_A7
-    #include <applibs/networking.h>
-    #include <curl/curl.h>
-    #include <errno.h>
-    #include <stdbool.h>
-    #include <stdio.h>
-    #include <string.h>  // strerror
+#include <applibs/networking.h>
+#include <curl/curl.h>
+#include <errno.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <string.h>  // strerror
 
-    #include "network.h"
-    #include "util_print.h"
+#include "network.h"
+#include "util_print.h"
 
 bool is_network_connected(void)
 {
@@ -37,8 +37,7 @@ bool is_network_connected(void)
     }
 
     // -- Use a mask to get bits of the status related to internet connection
-    uint32_t connected =
-        status & Networking_InterfaceConnectionStatus_ConnectedToInternet;
+    uint32_t connected = status & Networking_InterfaceConnectionStatus_ConnectedToInternet;
     if (!connected)
     {
         printf("Error: No internet connectivity.\n");
@@ -97,7 +96,7 @@ void send_over_network(ZZ *data, size_t num_data_bytes)
     if (is_curl_error(&ret, "user agent")) { goto cleanup; }
 
     struct curl_slist *headers = NULL;
-    headers = curl_slist_append(headers, "Content-Type: vector<uint32_t>");
+    headers                    = curl_slist_append(headers, "Content-Type: vector<uint32_t>");
 
     printf("Sending the following data over the network: \n");
     print_poly("data", data, num_data_bytes / sizeof(ZZ));

@@ -29,23 +29,20 @@
 
 void bench_sym(void)
 {
-    // =========================
-    // 	    Configuration
-    // =========================
 #ifdef SE_USE_MALLOC
-    size_t n       = 4096;
-    size_t nprimes = 3;
+    const size_t n       = 4096;
+    const size_t nprimes = 3;
 #else
-    size_t n       = SE_DEGREE_N;
-    size_t nprimes = SE_NPRIMES;
+    const size_t n       = SE_DEGREE_N;
+    const size_t nprimes = SE_NPRIMES;
 #endif
     Parms parms;
-    parms.scale = (n > 1024) ? pow(2, 25) : pow(2, 20);
-    // =========================
-    parms.is_asymmetric = 0;
-    parms.small_s       = 1;
-    parms.sample_s      = 0;
-    if (!parms.sample_s) se_assert(parms.small_s);  // Make sure we didn't set this accidentally
+    parms.is_asymmetric = false;
+    parms.small_s       = true;
+    parms.sample_s      = false;
+
+    // -- Make sure we didn't set this accidentally
+    if (!parms.sample_s) se_assert(parms.small_s);
 
 #ifdef SE_USE_MALLOC
     print_ckks_mempool_size(n, 1);
@@ -53,10 +50,11 @@ void bench_sym(void)
 #else
     print_ckks_mempool_size();
     ZZ mempool_local[MEMPOOL_SIZE];
+    memset(&mempool_local, 0, MEMPOOL_SIZE * sizeof(ZZ));
     ZZ *mempool = &(mempool_local[0]);
 #endif
 
-    // Get pointers
+    // -- Get pointers
     SE_PTRS se_ptrs_local;
     ckks_set_ptrs_sym(n, mempool, &se_ptrs_local);
     double complex *conj_vals  = se_ptrs_local.conj_vals;
@@ -85,7 +83,7 @@ void bench_sym(void)
     print_bench_banner(bench_name, &parms);
 
     Timer timer;
-    size_t COUNT  = 10;
+    const size_t COUNT = 10;
     float t_total = 0, t_min = 0, t_max = 0, t_curr = 0;
     for (size_t b_itr = 0; b_itr < COUNT + 1; b_itr++)
     {
@@ -150,7 +148,11 @@ void bench_sym(void)
     print_bench_banner(bench_name, &parms);
 
 #ifdef SE_USE_MALLOC
-    free(mempool);
+    if (mempool)
+    {
+        free(mempool);
+        mempool = 0;
+    }
     delete_parameters(&parms);
 #endif
 }

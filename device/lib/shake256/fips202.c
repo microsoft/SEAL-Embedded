@@ -41,16 +41,14 @@ typedef struct
  * Description: Absorb step of Keccak;
  *              non-incremental, starts by zeroeing the state.
  *
- * Arguments:   - uint64_t *s:       pointer to (uninitialized) output Keccak
- *state
+ * Arguments:   - uint64_t *s:       pointer to (uninitialized) output Keccak state
  *              - uint32_t r:        rate in bytes (e.g., 168 for SHAKE128)
  *              - const uint8_t *m:  pointer to input to be absorbed into s
  *              - size_t mlen:       length of input in bytes
  *              - uint8_t p:         domain-separation byte for different
  *Keccak-derived functions
  **************************************************/
-static void keccak_absorb(uint64_t *s, uint32_t r, const uint8_t *m, size_t mlen,
-                          uint8_t p)
+static void keccak_absorb(uint64_t *s, uint32_t r, const uint8_t *m, size_t mlen, uint8_t p)
 {
     size_t i;
     uint8_t t[200];
@@ -75,8 +73,8 @@ static void keccak_absorb(uint64_t *s, uint32_t r, const uint8_t *m, size_t mlen
  * Name:        keccak_squeezeblocks
  *
  * Description: Squeeze step of Keccak. Squeezes full blocks of r bytes each.
- *              Modifies the state. Can be called multiple times to keep
- *squeezing, i.e., is incremental.
+ *              Modifies the state. Can be called multiple times to keep squeezing, i.e., is
+ *              incremental.
  *
  * Arguments:   - uint8_t *h:     pointer to output blocks
  *              - size_t nblocks: number of blocks to be squeezed (written to h)

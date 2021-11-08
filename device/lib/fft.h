@@ -6,8 +6,8 @@
 
 Forward and Inverse Fast Fourier Transform.
 
-Note: Currently, the fft is only useful for testing, since only the ifft is used in the
-main algorithm. Leave both here for future use.
+Note: Currently, the fft is only useful for testing, since only the ifft is used in the main
+algorithm. Leave both here for future use.
 */
 
 #pragma once
@@ -74,8 +74,8 @@ Generates the roots for the IFFT from scratch (in bit-reversed order)
 
 Space req: 'ifft_roots' must have storage for n double complex values.
 
-@param[in]  n          IFFT transform size (number of roots to generate)
-@param[in]  logn       Minimum number of bits required to represent n (i.e. log2(n))
+@param[in]  n           IFFT transform size (number of roots to generate)
+@param[in]  logn        Minimum number of bits required to represent n (i.e. log2(n))
 @param[out] ifft_roots  IFFT roots (in bit-reversed order)
 */
 void calc_ifft_roots(size_t n, size_t logn, double complex *ifft_roots);
@@ -87,8 +87,8 @@ void calc_ifft_roots(size_t n, size_t logn, double complex *ifft_roots);
 In-place Inverse Fast-Fourier Transform using the Harvey butterfly.
 'roots' is ignored (and may be null) if SE_IFFT_OTF is chosen.
 
-Note: This function does not divide the final result by n. This steps must be performed
-outside of this function.
+Note: This function does not divide the final result by n. This step must be performed outside of
+this function.
 
 @param[in,out] vec    Input/Output vector of n double complex values
 @param[in]     n      IFFT transform size (i.e. polynomial degree)

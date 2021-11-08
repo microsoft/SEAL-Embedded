@@ -25,8 +25,7 @@ Size req: v must be at least vlen_bytes
 
 @param[in] v           Input polynomial (ciphertext) to be printed
 @param[in] vlen_bytes  Number of bytes of v to print
-@returns               Then number of bytes of v that were printed (equal to vlen_bytes on
-success)
+@returns               Then number of bytes of v that were printed (equal to vlen_bytes on success)
 */
 size_t test_print_ciphertexts(void *v, size_t vlen_bytes)
 {
@@ -43,8 +42,8 @@ size_t test_print_ciphertexts(void *v, size_t vlen_bytes)
 }
 
 /**
-Helper function to tests the default SEAL-Embedded API for by printing values of a
-ciphertext. If SE_DISABLE_TESTING_CAPABILITY is not defined, throws an error on failure.
+Helper function to tests the default SEAL-Embedded API for by printing values of a ciphertext.
+If SE_DISABLE_TESTING_CAPABILITY is not defined, throws an error on failure.
 On success, resulting output can be verified with the SEAL-Embedded adapter.
 */
 void test_ckks_api_base(SE_PARMS *se_parms)
@@ -60,6 +59,7 @@ void test_ckks_api_base(SE_PARMS *se_parms)
     flpt *v = calloc(vlen, sizeof(flpt));
 #else
     flpt v[SE_DEGREE_N / 2];
+    memset(&v, 0, SE_DEGREE_N * sizeof(flpt) / 2);
     se_assert(SE_DEGREE_N / 2 == se_parms->parms->coeff_count / 2);
 #endif
 
@@ -79,26 +79,29 @@ void test_ckks_api_base(SE_PARMS *se_parms)
         /*
         // -- Seed for testing
         uint8_t share_seed[SE_PRNG_SEED_BYTE_COUNT];
-        uint8_t seed[SE_PRNG_SEED_BYTE_COUNT];
+        uint8_t       seed[SE_PRNG_SEED_BYTE_COUNT];
         memset(&(share_seed[0]), 0, SE_PRNG_SEED_BYTE_COUNT);
-        memset(&(seed[0]), 0, SE_PRNG_SEED_BYTE_COUNT);
+        memset(&(      seed[0]), 0, SE_PRNG_SEED_BYTE_COUNT);
         share_seed[0] = 1;
-        seed[0]       = 1;
-        bool ret      = se_encrypt_seeded(share_seed, seed, fake_network_func, &(v[0]),
-                                     vlen * sizeof(flpt), false, se_parms);
-        se_assert(ret);
+              seed[0] = 1;
+        bool ret = se_encrypt_seeded(share_seed, seed, fake_network_func, &(v[0]), vlen *
+        sizeof(flpt), false, se_parms); se_assert(ret);
         */
         se_encrypt(fake_network_func, &(v[0]), vlen * sizeof(flpt), false, se_parms);
     }
 #ifdef SE_USE_MALLOC
-    free(v);
+    if (v)
+    {
+        free(v);
+        v = 0;
+    }
 #endif
     delete_parameters(se_parms->parms);
 }
 
 /**
-Tests the default SEAL-Embedded API for symmetric encryption by printing values of a
-ciphertext. If SE_DISABLE_TESTING_CAPABILITY is not defined, throws an error on failure.
+Tests the default SEAL-Embedded API for symmetric encryption by printing values of a ciphertext.
+If SE_DISABLE_TESTING_CAPABILITY is not defined, throws an error on failure.
 On success, resulting output can be verified with the SEAL-Embedded adapter.
 */
 void test_ckks_api_sym(void)
@@ -119,8 +122,8 @@ void test_ckks_api_sym(void)
 }
 
 /**
-Tests the default SEAL-Embedded API for asymmetric encryption by printing values of a
-ciphertext. If SE_DISABLE_TESTING_CAPABILITY is not defined, throws an error on failure.
+Tests the default SEAL-Embedded API for asymmetric encryption by printing values of a ciphertext.
+If SE_DISABLE_TESTING_CAPABILITY is not defined, throws an error on failure.
 On success, resulting output can be verified with the SEAL-Embedded adapter.
 */
 void test_ckks_api_asym(void)

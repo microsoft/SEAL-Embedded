@@ -25,29 +25,29 @@ Inverse NTT type. Options 1 - 3 not guaranteed to always work.
 
 0 = compute "on-the-fly"
 1 = compute "one-shot"
-2 = load
+2 = load 
 3 = load fast
 */
 #define SE_INTT_TYPE 0
 
 // ==============================================================
-//           Configurations pertaining to benchmarking
+//           Configurations pertaining to benchmarking    
 // ==============================================================
 
 /**
 Include timer code for benchmarking.
 Uncomment to use.
 */
-#define SE_ENABLE_TIMERS
+// #define SE_ENABLE_TIMERS
 
 // ==============================================================
-//           Configurations pertaining to debugging
+//           Configurations pertaining to debugging      
 // ==============================================================
 
-// --- If defined, "print_poly" functions will only print PRINT_LEN_SMALL elements
+// --- If defined, "print_poly" functions will only print PRINT_LEN_SMALL elements 
 //     of the requested polynomial, (unless a "full" version of "print_poly" is called)
 #define SE_PRINT_SMALL
-#define PRINT_LEN_SMALL 8
+#define PRINT_LEN_SMALL 8 
 
 // #define SE_DEBUG_WITH_ZEROS
 // #define SE_DEBUG_NO_ERRORS
@@ -59,9 +59,9 @@ Uncomment to use.
 // ==============================================================
 
 /**
-Number of bytes to store the seed for the prng.
+Number of bytes to store the seed for the prng. 
 
-For compressed public keys and/or compressed ciphertexts
+For compressed public keys and/or compressed ciphertexts 
 (in symmetric mode), must match prng byte count used in SEAL.
 */
 #define SE_PRNG_SEED_BYTE_COUNT 64
@@ -75,7 +75,7 @@ Data path to use if SE_DATA_PATH is not set in CMAKE
 Data path length to use if SE_DATA_PATH is not set in CMAKE.
 Must be >= length of the SE_DATA_PATH_ define above (in bytes).
 
-(Most compilers are ok with this calling strlen strlen, but
+(Most compilers are ok with this calling strlen strlen, but 
 some are not.)
 */
 #define SE_DATA_PATH_LEN_ strlen(SE_DATA_PATH_)
@@ -89,7 +89,7 @@ some are not.)
 // ==============================================================
 
 // --------------------------------------------------------------
-//      Configurations dervied from user_defines.h and above.
+//      Configurations dervied from user_defines.h and above. 
 //                       Do not modify.
 // --------------------------------------------------------------
 
@@ -104,7 +104,7 @@ some are not.)
 
 #if !defined(SE_DATA_PATH) || !defined(SE_DATA_PATH_LEN)
     #undef SE_DATA_PATH
-    #define SE_DATA_PATH SE_DATA_PATH_
+    #define SE_DATA_PATH SE_DATA_PATH_ 
     #define MAX_FPATH_SIZE SE_DATA_PATH_LEN_ + 1 + MAX_DATA_FILE_SIZE
 #else
     #define MAX_FPATH_SIZE SE_DATA_PATH_LEN + 1 + MAX_DATA_FILE_SIZE
@@ -127,9 +127,9 @@ some are not.)
 #  if (SE_RAND_TYPE == 0)
     // -- Do nothing
 #elif (SE_RAND_TYPE == 1)
-    #define SE_RAND_GETRANDOM
+    #define SE_RAND_GETRANDOM 
 #elif (SE_RAND_TYPE == 2)
-    #define SE_RAND_NRF5
+    #define SE_RAND_NRF5      
 #else
     #ifndef SE_CONFIG_ERROR
     #define SE_CONFIG_ERROR
@@ -175,6 +175,8 @@ some are not.)
     #define SE_INDEX_MAP_LOAD
 #elif (SE_INDEX_MAP_TYPE == 3)
     #define SE_INDEX_MAP_LOAD_PERSIST
+#elif (SE_INDEX_MAP_TYPE == 4)
+    #define SE_INDEX_MAP_LOAD_PERSIST_SYM_LOAD_ASYM
 #else
     #ifndef SE_CONFIG_ERROR
     #define SE_CONFIG_ERROR
@@ -183,7 +185,7 @@ some are not.)
 
 // ----- Secret key type
 #  if (SE_SK_TYPE == 0)
-    #define SE_SK_NOT_PERSISTENT
+    #define SE_SK_NOT_PERSISTENT 
 #elif (SE_SK_TYPE == 1)
     #define SE_SK_PERSISTENT_ACROSS_PRIMES
 #elif (SE_SK_TYPE == 2)
@@ -198,7 +200,7 @@ some are not.)
 #  if (SE_DATA_LOAD_TYPE == 0)
     // -- Do nothing
 #elif (SE_DATA_LOAD_TYPE == 1)
-    #define SE_DATA_FROM_CODE_COPY
+    #define SE_DATA_FROM_CODE_COPY 
 #elif (SE_DATA_LOAD_TYPE == 2)
     #define SE_DATA_FROM_CODE_DIRECT
 #else
@@ -330,8 +332,12 @@ FFT type. For now, we only support "on-the-fly" for the FFT type.
 #if __has_builtin(__builtin_complex)
 #define _complex(x, y) __builtin_complex(x, y)
 #else
-// #define _complex(x, y) CMPLX(x, y)
-#define _complex(x, y) x + y *I
+#ifdef I
+//#define _complex(x, y) CMPLX(x, y)
+#define _complex(x, y) x + y*I
+#else
+#define _complex(x, y) x + y*(1.0fi)
+#endif
 #endif
 
 #ifdef SE_USE_PREDEF_COMPLEX_FUNCS
@@ -358,18 +364,18 @@ static inline double se_cimag(double complex val)
 
 typedef size_t PolySizeType;
 #ifdef SE_PRIMESIZE_64
-typedef uint64_t ZZ;
-typedef int64_t ZZsign;  // signed type
-typedef double flpt;
-#define PRIuZZ PRIu64
-#define PRIiZZ PRIi64
+    typedef uint64_t ZZ;
+    typedef int64_t ZZsign;  // signed type
+    typedef double flpt;
+    #define PRIuZZ PRIu64
+    #define PRIiZZ PRIi64
 #else
-typedef uint32_t ZZ;
-typedef int32_t ZZsign; // signed ZZ type
-// typedef double flpt;
-typedef float flpt;
-#define PRIuZZ PRIu32
-#define PRIiZZ PRIi32
+    typedef uint32_t ZZ;
+    typedef int32_t ZZsign; // signed ZZ type
+    // typedef double flpt;
+    typedef float flpt;
+    #define PRIuZZ PRIu32
+    #define PRIiZZ PRIi32
 #endif
 
 /**
@@ -382,7 +388,10 @@ Size req: 'v' must contain at least n ZZ values
 */
 static inline void clear(ZZ *v, PolySizeType n)
 {
-    memset(v, 0, n * sizeof(ZZ));
+    if (v)
+    {
+        memset(v, 0, n * sizeof(ZZ));
+    }
 }
 
 /**
@@ -442,12 +451,17 @@ static inline void se_secure_zero_memset(void *v, size_t n)
     #undef SE_INDEX_MAP_LOAD
     #undef SE_INDEX_MAP_PERSIST
     #undef SE_INDEX_MAP_LOAD_PERSIST
+    #undef SE_INDEX_MAP_LOAD_PERSIST_SYM_LOAD_ASYM
 #elif defined(SE_INDEX_MAP_LOAD)
     #undef SE_INDEX_MAP_PERSIST
     #undef SE_INDEX_MAP_LOAD_PERSIST
+    #undef SE_INDEX_MAP_LOAD_PERSIST_SYM_LOAD_ASYM
 #elif defined(SE_INDEX_MAP_PERSIST)
     #undef SE_INDEX_MAP_LOAD_PERSIST
+    #undef SE_INDEX_MAP_LOAD_PERSIST_SYM_LOAD_ASYM
 #elif defined(SE_INDEX_MAP_LOAD_PERSIST)
+    #undef SE_INDEX_MAP_LOAD_PERSIST_SYM_LOAD_ASYM
+#elif defined(SE_INDEX_MAP_LOAD_PERSIST_SYM_LOAD_ASYM)
     // -- Do nothing
 #else
     #define SE_INDEX_MAP_OTF
@@ -523,19 +537,42 @@ static inline void se_secure_zero_memset(void *v, size_t n)
     #endif
 #endif
 
-// -- This must be after IFFT sanity checks
 #ifdef SE_SK_PERSISTENT
     #undef SE_SK_PERSISTENT_ACROSS_PRIMES
     #undef SE_SK_NOT_PERSISTENT
 #elif defined(SE_SK_PERSISTENT_ACROSS_PRIMES)
-    #ifdef SE_IFFT_OTF
-        #undef SE_SK_PERSISTENT_ACROSS_PRIMES
-        #undef SE_SK_NOT_PERSISTENT
-        #define SE_SK_PERSISTENT
-    #endif
+    #undef SE_SK_NOT_PERSISTENT
 #elif defined(SE_SK_NOT_PERSISTENT)
     // -- Do nothing
 #else
     #define SE_SK_NOT_PERSISTENT
 #endif
+
+
+// -- This must be afer sk and ntt and ifft and index map types are set
+#ifdef SE_IFFT_OTF 
+    // -- We don't have any ifft memory to work with, but we may have ntt memory
+    #ifdef SE_NTT_OTF
+        // -- We don't have any ntt memory to work with either
+        #if defined(SE_INDEX_MAP_LOAD) 
+            // -- If sym, we have nowhere to load index_map, so can indicate
+            //    memory as persistent
+            // -- Optimization: Index_map and SK can share memory if SK is not
+            //    set as persistent
+            #if defined(SE_SK_PERSISTENT)
+                // -- Indicate index map load memory as persistent
+                #undef SE_INDEX_MAP_LOAD
+                #define SE_INDEX_MAP_LOAD_PERSIST_SYM_LOAD_ASYM
+            #elif defined(SE_SK_NOT_PERSISTENT)
+                // -- SK can be at least persistent across primes
+                #undef SE_SK_NOT_PERSISTENT
+                #define SE_SK_PERSISTENT_ACROSS_PRIMES
+            #endif
+            #ifdef SE_SK_PERSISTENT_ACROSS_PRIMES
+                #define SE_SK_INDEX_MAP_SHARED
+            #endif
+        #endif
+    #endif
+#endif
+
 // clang-format on

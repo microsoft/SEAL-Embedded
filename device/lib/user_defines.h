@@ -32,7 +32,7 @@ Assert type. Will be force-set to 0 if in cmake release mode.
 
 0 = none (will define NDEBUG)
 1 = standard using <assert.h>
-2 = custom.
+2 = custom
 */
 #define SE_ASSERT_TYPE 1
 
@@ -77,17 +77,21 @@ Note: On the Sphere M4, will not work if this is load-fast for n = 4K and in Deb
 2 = load
 3 = load fast
 */
-#define SE_NTT_TYPE 0
+#define SE_NTT_TYPE 1
 
 /**
 Index map type.
 
+If set to load (non-persist) and SK is persistent and IFFT and NTT are on the fly, will be
+reset to option 4 (i.e. load persistent for symmetric, load for asymmetric)
+
 0 = compute "on-the-fly"
-1 = compute persistant
+1 = compute persistent
 2 = load
-3 = load persistant
+3 = load persistent
+4 = load persistent for symmetric, load for asymmetric
 */
-#define SE_INDEX_MAP_TYPE 0
+#define SE_INDEX_MAP_TYPE 1
 
 /**
 Secret key type. (Ignored in asymmetric mode).
@@ -99,14 +103,12 @@ memory for better performance).
 1 = persistent across primes
 2 = persistent
 */
-#define SE_SK_TYPE 0
+#define SE_SK_TYPE 2
 
 /**
 Data load type. Load method for precomputed keys, roots, and index map.
 
 Note: On M4, this will be force set to 1.
-
-TODO: Error when this is 1 and index map is loaded or ifft is loaded
 
 0 = from file                              (uses file I/O)
 1 = copy from headers into separate buffer (no file I/O)
@@ -135,7 +137,6 @@ treats complex values as two doubles (a real part followed by an imaginary part)
 /**
 Sometimes malloc is not available or stack memory allocation is more desireable.
 Comment out to use stack allocation instead.
-TODO: Not fully working as yet to comment this out.
 */
 #define SE_USE_MALLOC
 
@@ -153,6 +154,12 @@ testing) to 0 at the start of the function for better performance. If defined, t
 will no longer function correctly. Uncomment to use.
 */
 // #define SE_DISABLE_TESTING_CAPABILITY
+
+/**
+Uncomment to use the 27-bit default for n=4K instead of the 30-bit default
+Make sure to uncomment SEALE_DEFAULT_4K_27BIT in the adapter (see: utils.h) as well.
+*/
+// #define SE_DEFAULT_4K_27BIT
 
 // =============================================================================
 //                          Malloc off configurations
@@ -202,7 +209,7 @@ If you are on NRF5 and want output to go to RTT, make sure RETARGET_ENABLED is s
 sdk_config.h (and that RTT is enabled in the configuration window) and comment out this
 preprocessor.
 
-If you don not want output to go to RTT, do the opposite of above and uncomment this
+If you do not want output to go to RTT, do the opposite of above and uncomment this
 preprocessor.
 */
 // #define SE_NRF5_UART_PRINTF_ENABLED

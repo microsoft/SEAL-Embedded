@@ -30,6 +30,7 @@
 comp_id=5a4b43d1-a3b0-4f9f-a9c9-30a4cc52a2f2
 
 AZSPHERE_SDK_PATH="/opt/azurespheresdk"
+IMAGE_DIR_PATH="./build"
 
 SCRIPT_DIR_PATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 
@@ -46,7 +47,7 @@ azsphere device sideload delete
 azsphere device app stop --component-id $comp_id
 
 # -- Load the applicaiton onto the device
-azsphere device sideload deploy --image-package SEAL_EMBEDDED.imagepackage
+azsphere device sideload deploy --image-package $IMAGE_DIR_PATH/SEAL_EMBEDDED.imagepackage
 
 # -- Start running the application in debug mode
 azsphere device app start --debug-mode --component-id $comp_id

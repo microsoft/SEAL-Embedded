@@ -9,6 +9,7 @@
 
 #include <cassert>
 
+#include "generate.h"
 #include "seal/seal.h"
 #include "utils.h"
 
@@ -24,15 +25,15 @@ void sk_to_ntt_form(const SEALContext &context, SecretKey &sk)
     // -- This is kind of clunky but we need to do it this way
     auto &parms_id = (sk.parms_id() == parms_id_zero) ? context.key_parms_id() : sk.parms_id();
 
-    auto sk_context_data_ptr  = context.get_context_data(parms_id);
-    auto &parms               = sk_context_data_ptr->parms();
-    auto &coeff_modulus       = parms.coeff_modulus();
-    size_t n                  = parms.poly_modulus_degree();
-    size_t coeff_modulus_size = coeff_modulus.size();
-    auto ntt_tables_ptr       = sk_context_data_ptr->small_ntt_tables();
+    auto sk_context_data_ptr = context.get_context_data(parms_id);
+    auto &parms              = sk_context_data_ptr->parms();
+    auto &coeff_modulus      = parms.coeff_modulus();
+    size_t nprimes           = coeff_modulus.size();
+    size_t n                 = parms.poly_modulus_degree();
+    auto ntt_tables_ptr      = sk_context_data_ptr->small_ntt_tables();
 
     RNSIter sk_iter(sk.data().data(), n);
-    ntt_negacyclic_harvey(sk_iter, coeff_modulus_size, ntt_tables_ptr);
+    ntt_negacyclic_harvey(sk_iter, nprimes, ntt_tables_ptr);
 
     sk.data().parms_id() = context.key_parms_id();
     assert(sk.data().is_ntt_form() == true);
@@ -46,17 +47,17 @@ void sk_to_non_ntt_form(const SEALContext &context, SecretKey &sk)
     // -- This is kind of clunky but we need to do it this way
     auto &parms_id = (sk.parms_id() == parms_id_zero) ? context.key_parms_id() : sk.parms_id();
 
-    auto sk_context_data_ptr  = context.get_context_data(parms_id);
-    auto &parms               = sk_context_data_ptr->parms();
-    auto &coeff_modulus       = parms.coeff_modulus();
-    size_t coeff_modulus_size = coeff_modulus.size();
-    size_t n                  = parms.poly_modulus_degree();
-    auto ntt_tables_ptr       = sk_context_data_ptr->small_ntt_tables();
+    auto sk_context_data_ptr = context.get_context_data(parms_id);
+    auto &parms              = sk_context_data_ptr->parms();
+    auto &coeff_modulus      = parms.coeff_modulus();
+    size_t nprimes           = coeff_modulus.size();
+    size_t n                 = parms.poly_modulus_degree();
+    auto ntt_tables_ptr      = sk_context_data_ptr->small_ntt_tables();
 
     assert(sk_context_data_ptr == context.key_context_data());
 
     RNSIter sk_itr(sk.data().data(), n);
-    inverse_ntt_negacyclic_harvey(sk_itr, coeff_modulus_size, ntt_tables_ptr);
+    inverse_ntt_negacyclic_harvey(sk_itr, nprimes, ntt_tables_ptr);
 
     sk.data().parms_id() = parms_id_zero;
     assert(sk.data().is_ntt_form() == false);
@@ -66,52 +67,50 @@ void pk_to_ntt_form(const SEALContext &context, PublicKeyWrapper &pk_wr)
 {
     if (pk_wr.is_ntt == true) return;
 
-    auto pk_context_data_ptr  = context.get_context_data(pk_wr.pk->parms_id());
-    auto &parms               = pk_context_data_ptr->parms();
-    auto &coeff_modulus       = parms.coeff_modulus();
-    size_t n                  = parms.poly_modulus_degree();
-    size_t coeff_modulus_size = coeff_modulus.size();
-    auto ntt_tables_ptr       = pk_context_data_ptr->small_ntt_tables();
+    auto pk_context_data_ptr = context.get_context_data(pk_wr.pk->parms_id());
+    auto &parms              = pk_context_data_ptr->parms();
+    auto &coeff_modulus      = parms.coeff_modulus();
+    size_t nprimes           = coeff_modulus.size();
+    size_t n                 = parms.poly_modulus_degree();
+    auto ntt_tables_ptr      = pk_context_data_ptr->small_ntt_tables();
 
     assert(pk_context_data_ptr == context.key_context_data());
     assert(pk_wr.pk->data().size() == 2);
 
-    PolyIter pk_iter(pk_wr.pk->data().data(), n, coeff_modulus_size);
+    PolyIter pk_iter(pk_wr.pk->data().data(), n, nprimes);
     ntt_negacyclic_harvey(pk_iter, pk_wr.pk->data().size(), ntt_tables_ptr);
 
     pk_wr.is_ntt = true;
     // assert(pk_wr.pk->data().is_ntt_form() == true);
     // -- Note: We cannot use pk_wr.pk->data().is_ntt_form() directly because this value
-    // is not
-    //    directly changeable for ciphertexts (and therefore public keys). It is only
-    //    changeable by calling evaluator.transform_to_ntt(), but this function
-    //    throws an exception when you try to give it a public key.
+    //    is not directly changeable for ciphertexts (and therefore public keys).
+    //    It is only changeable by calling evaluator.transform_to_ntt(), but this
+    //    function throws an exception when you try to give it a public key.
 }
 
 void pk_to_non_ntt_form(const SEALContext &context, PublicKeyWrapper &pk_wr)
 {
     if (pk_wr.is_ntt == false) return;
 
-    auto pk_context_data_ptr  = context.get_context_data(pk_wr.pk->parms_id());
-    auto &parms               = pk_context_data_ptr->parms();
-    auto &coeff_modulus       = parms.coeff_modulus();
-    size_t n                  = parms.poly_modulus_degree();
-    size_t coeff_modulus_size = coeff_modulus.size();
-    auto ntt_tables_ptr       = pk_context_data_ptr->small_ntt_tables();
+    auto pk_context_data_ptr = context.get_context_data(pk_wr.pk->parms_id());
+    auto &parms              = pk_context_data_ptr->parms();
+    auto &coeff_modulus      = parms.coeff_modulus();
+    size_t nprimes           = coeff_modulus.size();
+    size_t n                 = parms.poly_modulus_degree();
+    auto ntt_tables_ptr      = pk_context_data_ptr->small_ntt_tables();
 
     assert(pk_context_data_ptr == context.key_context_data());
     assert(pk_wr.pk->data().size() == 2);
 
-    PolyIter pk_iter(pk_wr.pk->data().data(), n, coeff_modulus_size);
+    PolyIter pk_iter(pk_wr.pk->data().data(), n, nprimes);
     inverse_ntt_negacyclic_harvey(pk_iter, pk_wr.pk->data().size(), ntt_tables_ptr);
 
     pk_wr.is_ntt = false;
     // assert(pk_wr.pk->data().is_ntt_form() == false);
     // -- Note: We cannot use pk_wr.pk->data().is_ntt_form() directly because this value
-    // is not
-    //    directly changeable for ciphertexts (and therefore public keys). It is only
-    //    changeable by calling evaluator.transform_to_ntt(), but this function
-    //    throws an exception when you try to give it a public key
+    //    is not directly changeable for ciphertexts (and therefore public keys).
+    //    It is only changeable by calling evaluator.transform_to_ntt(), but this
+    //    function throws an exception when you try to give it a public key.
 }
 
 void ct_to_ntt_form(Evaluator &evaluator, Ciphertext &c_in)
@@ -133,16 +132,16 @@ void pt_to_ntt_form(const SEALContext &context, Plaintext &pt)
     bool is_ntt = pt.is_ntt_form();
     if (is_ntt == true) return;
 
-    // auto context_data_ptr     = context.key_context_data();
-    auto context_data_ptr     = context.first_context_data();
-    auto &parms               = context_data_ptr->parms();
-    auto &coeff_modulus       = parms.coeff_modulus();
-    size_t coeff_modulus_size = coeff_modulus.size();
-    size_t n                  = parms.poly_modulus_degree();
-    auto ntt_tables_ptr       = context_data_ptr->small_ntt_tables();
+    // auto context_data_ptr = context.key_context_data();
+    auto context_data_ptr = context.first_context_data();
+    auto &parms           = context_data_ptr->parms();
+    auto &coeff_modulus   = parms.coeff_modulus();
+    size_t nprimes        = coeff_modulus.size();
+    size_t n              = parms.poly_modulus_degree();
+    auto ntt_tables_ptr   = context_data_ptr->small_ntt_tables();
 
     RNSIter plaintext(pt.data(), n);
-    ntt_negacyclic_harvey(plaintext, coeff_modulus_size, ntt_tables_ptr);
+    ntt_negacyclic_harvey(plaintext, nprimes, ntt_tables_ptr);
 
     pt.parms_id() = context_data_ptr->parms_id();
     assert(pt.is_ntt_form() == true);
@@ -153,15 +152,15 @@ void pt_to_non_ntt_form(const SEALContext &context, Plaintext &pt)
     bool is_ntt = pt.is_ntt_form();
     if (is_ntt == false) return;
 
-    auto context_data_ptr     = context.first_context_data();
-    auto &parms               = context_data_ptr->parms();
-    auto &coeff_modulus       = parms.coeff_modulus();
-    size_t coeff_modulus_size = coeff_modulus.size();
-    size_t n                  = parms.poly_modulus_degree();
-    auto ntt_tables_ptr       = context_data_ptr->small_ntt_tables();
+    auto context_data_ptr = context.first_context_data();
+    auto &parms           = context_data_ptr->parms();
+    auto &coeff_modulus   = parms.coeff_modulus();
+    size_t nprimes        = coeff_modulus.size();
+    size_t n              = parms.poly_modulus_degree();
+    auto ntt_tables_ptr   = context_data_ptr->small_ntt_tables();
 
     RNSIter plaintext(pt.data(), n);
-    inverse_ntt_negacyclic_harvey(plaintext, coeff_modulus_size, ntt_tables_ptr);
+    inverse_ntt_negacyclic_harvey(plaintext, nprimes, ntt_tables_ptr);
 
     pt.parms_id() = parms_id_zero;
     assert(pt.is_ntt_form() == false);

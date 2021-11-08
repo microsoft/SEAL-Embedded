@@ -4,8 +4,8 @@
 /**
 @file fft.c
 
-Note: All roots are mod 2n, where n is the number of elements (e.g. polynomial degree) in
-the transformed vector. See the paper for more details.
+Note: All roots are mod 2n, where n is the number of elements (e.g. polynomial degree) in the
+transformed vector. See the paper for more details.
 */
 
 #include "fft.h"
@@ -14,7 +14,7 @@ the transformed vector. See the paper for more details.
 #include "util_print.h"
 
 #ifndef M_PI
-    #define M_PI 3.14159265358979323846
+#define M_PI 3.14159265358979323846
 #endif
 
 /**
@@ -145,6 +145,7 @@ void ifft_inpl(double complex *vec, size_t n, size_t logn, const double complex 
 
 void fft_inpl(double complex *vec, size_t n, size_t logn, const double complex *roots)
 {
+    // print_poly_double_complex("vec[3603] ", &(vec[3603]), 1);
     size_t m = n << 1;  // Degree of roots
 #ifdef SE_FFT_OTF
     SE_UNUSED(roots);
@@ -184,7 +185,7 @@ void fft_inpl(double complex *vec, size_t n, size_t logn, const double complex *
 #if defined(SE_FFT_LOAD_FULL) || defined(SE_FFT_ONE_SHOT)
     size_t root_idx = 1;
 #endif
-    for (int i = 0; i < logn; i++, h *= 2, tt /= 2)  // rounds
+    for (size_t i = 0; i < logn; i++, h *= 2, tt /= 2)  // rounds
     {
         for (size_t j = 0, kstart = 0; j < h; j++, kstart += 2 * tt)  // groups
         {

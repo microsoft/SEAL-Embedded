@@ -46,7 +46,7 @@ Multiplies two ZZ-type values and returns the full sized-(2*sizeof(ZZ)) result.
 */
 static inline void mul_uint_wide(ZZ op1, ZZ op2, ZZ *res)
 {
-    mul_uint32_wide(op1, op2, res);
+    return mul_uint32_wide(op1, op2, res);
 }
 
 /**
@@ -83,8 +83,7 @@ Adds two 128-bit unsigned integers together.
 @param[out] res  Pointer to the 128-bit result of op1 + op2 (w/o the carry)
 @returns         The carry value
 */
-static inline unsigned char add_uint128(const uint64_t *op1, const uint64_t *op2,
-                                        uint64_t *res)
+static inline unsigned char add_uint128(const uint64_t *op1, const uint64_t *op2, uint64_t *res)
 {
     uint64_t res_right;
     uint64_t carry_right = (uint64_t)add_uint64(op1[0], op2[0], (uint64_t *)&res_right);

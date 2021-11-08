@@ -52,14 +52,13 @@ extern void _putchar(char character);
 #endif
 
 /**
-The printf string for printing floating point values. Modify to change the printing
-precision.
+The printf string for printing floating point values. Modify to change the printing precision.
 */
 #define SE_PRINT_PREC_STR "%0.2f"
 
 /**
-The printf string for printing complex floating point values. Modify to change the
-printing precision.
+The printf string for printing complex floating point values. Modify to change the printing
+precision.
 */
 #define SE_PRINT_PREC_CMPLX_STR "%0.2f + %0.2fi"
 
@@ -150,8 +149,8 @@ Prints an array of double complex values
 
 Note: If SE_PRINT_SMALL is defined, will only print up to PRINT_LEN_SMALL elements of 'a'
 
-Size_req: 'a' must have at least 'len' double complex values (or min(PRINT_LEN_SMALL, len)
-double complex values, if SE_PRINT_SMALL is defined)
+Size_req: 'a' must have at least 'len' double complex values (or min(PRINT_LEN_SMALL, len) double
+complex values, if SE_PRINT_SMALL is defined)
 
 @param[in] name  Name of array
 @param[in] a     Array to print
@@ -204,8 +203,8 @@ Prints an array of type flpt values
 
 Note: If SE_PRINT_SMALL is defined, will only print up to PRINT_LEN_SMALL elements of 'a'
 
-Size_req: 'a' must have at least 'len' flpt values (or min(PRINT_LEN_SMALL, len) flpt
-values, if SE_PRINT_SMALL is defined)
+Size_req: 'a' must have at least 'len' flpt values (or min(PRINT_LEN_SMALL, len) flpt values, if
+SE_PRINT_SMALL is defined)
 
 @param[in] name  Name of array
 @param[in] a     Array to print
@@ -249,8 +248,8 @@ Prints an array of doubles
 
 Note: If SE_PRINT_SMALL is defined, will only print up to PRINT_LEN_SMALL elements of 'a'
 
-Size_req: 'a' must have at least 'len' double values (or min(PRINT_LEN_SMALL, len) double
-values, if SE_PRINT_SMALL is defined)
+Size_req: 'a' must have at least 'len' double values (or min(PRINT_LEN_SMALL, len) double values, if
+SE_PRINT_SMALL is defined)
 
 @param[in] name  Name of array
 @param[in] a     Array to print
@@ -293,8 +292,8 @@ Prints an array of type ZZsign values
 
 Note: If SE_PRINT_SMALL is defined, will only print up to PRINT_LEN_SMALL elements of 'a'
 
-Size_req: 'a' must have at least 'len' ZZsign values (or min(PRINT_LEN_SMALL, len) ZZsign
-values, if SE_PRINT_SMALL is defined)
+Size_req: 'a' must have at least 'len' ZZsign values (or min(PRINT_LEN_SMALL, len) ZZsign values, if
+SE_PRINT_SMALL is defined)
 
 @param[in] name  Name of array
 @param[in] a     Array to print
@@ -337,8 +336,8 @@ Prints an array of int8_t values
 
 Note: If SE_PRINT_SMALL is defined, will only print up to PRINT_LEN_SMALL elements of 'a'
 
-Size_req: 'a' must have at least 'len' int8_t values (or min(PRINT_LEN_SMALL, len) int8_t
-values, if SE_PRINT_SMALL is defined)
+Size_req: 'a' must have at least 'len' int8_t values (or min(PRINT_LEN_SMALL, len) int8_t values, if
+SE_PRINT_SMALL is defined)
 
 @param[in] name  Name of array
 @param[in] a     Array to print
@@ -351,30 +350,6 @@ static inline void print_poly_int8(const char *name, const int8_t *a, PolySizeTy
     for (PolySizeType i = 0; i < print_len; i++)
     {
         printf("%" PRIi8, a[i]);
-        print_comma(i, len);
-    }
-    print_end_string(print_len, len);
-}
-
-/**
-Prints an array of uint8_t values
-
-Note: If SE_PRINT_SMALL is defined, will only print up to PRINT_LEN_SMALL elements of 'a'
-
-Size_req: 'a' must have at least 'len' uint8_t values (or min(PRINT_LEN_SMALL, len) uint8_t
-values, if SE_PRINT_SMALL is defined)
-
-@param[in] name  Name of array
-@param[in] a     Array to print
-@param[in] len   Number of elements of 'a' to print
-*/
-static inline void print_poly_uint8(const char *name, const uint8_t *a, PolySizeType len)
-{
-    size_t print_len = get_print_len(len);
-    printf("%s : { ", name);
-    for (PolySizeType i = 0; i < print_len; i++)
-    {
-        printf("%" PRIu8, a[i]);
         print_comma(i, len);
     }
     print_end_string(print_len, len);
@@ -401,32 +376,12 @@ static inline void print_poly_int8_full(const char *name, const int8_t *a, PolyS
 }
 
 /**
-Prints an array of uint8_t values
-
-Size_req: 'a' must have at least 'len' uint8_t values
-
-@param[in] name  Name of array
-@param[in] a     Array to print
-@param[in] len   Number of elements of 'a' to print
-*/
-static inline void print_poly_uint8_full(const char *name, const uint8_t *a, PolySizeType len)
-{
-    printf("%s : { ", name);
-    for (PolySizeType i = 0; i < len; i++)
-    {
-        printf("%" PRIu8, a[i]);
-        print_comma(i, len);
-    }
-    printf("}\n");
-}
-
-/**
 Prints an array of int64_t values
 
 Note: If SE_PRINT_SMALL is defined, will only print up to PRINT_LEN_SMALL elements of 'a'
 
-Size_req: 'a' must have at least 'len' int64_t values (or min(PRINT_LEN_SMALL, len)
-int64_t values, if SE_PRINT_SMALL is defined)
+Size_req: 'a' must have at least 'len' int64_t values (or min(PRINT_LEN_SMALL, len) int64_t values,
+if SE_PRINT_SMALL is defined)
 
 @param[in] name  Name of array
 @param[in] a     Array to print
@@ -465,12 +420,56 @@ static inline void print_poly_int64_full(const char *name, const int64_t *a, Pol
 }
 
 /**
+Prints an array of uint64_t values
+
+Note: If SE_PRINT_SMALL is defined, will only print up to PRINT_LEN_SMALL elements of 'a'
+
+Size_req: 'a' must have at least 'len' uint64_t values (or min(PRINT_LEN_SMALL, len) uint64_t
+values, if SE_PRINT_SMALL is defined)
+
+@param[in] name  Name of array
+@param[in] a     Array to print
+@param[in] len   Number of elements of 'a' to print
+*/
+static inline void print_poly_uint64(const char *name, const uint64_t *a, PolySizeType len)
+{
+    size_t print_len = get_print_len(len);
+    printf("%s : { ", name);
+    for (PolySizeType i = 0; i < print_len; i++)
+    {
+        printf("%" PRIu64, a[i]);
+        print_comma(i, len);
+    }
+    print_end_string(print_len, len);
+}
+
+/**
+Prints an array of uint64_t values
+
+Size_req: 'a' must have at least 'len' uint64_t values
+
+@param[in] name  Name of array
+@param[in] a     Array to print
+@param[in] len   Number of elements of 'a' to print
+*/
+static inline void print_poly_uint64_full(const char *name, const uint64_t *a, PolySizeType len)
+{
+    printf("%s : { ", name);
+    for (PolySizeType i = 0; i < len; i++)
+    {
+        printf("%" PRIu64, a[i]);
+        print_comma(i, len);
+    }
+    printf("}\n");
+}
+
+/**
 Prints an array of type-ZZ values
 
 Note: If SE_PRINT_SMALL is defined, will only print up to PRINT_LEN_SMALL elements of 'a'
 
-Size_req: 'a' must have at least 'len' type-ZZ values (or min(PRINT_LEN_SMALL, len)
-type-ZZ values, if SE_PRINT_SMALL is defined)
+Size_req: 'a' must have at least 'len' type-ZZ values (or min(PRINT_LEN_SMALL, len) type-ZZ values,
+if SE_PRINT_SMALL is defined)
 
 @param[in] name  Name of array
 @param[in] a     Array to print
@@ -581,9 +580,9 @@ Calls the corrrect print function depending on if 'a' is in small/compressed for
 
 Note: If SE_PRINT_SMALL is defined, will only print up to PRINT_LEN_SMALL elements of 'a'
 
-Size_req: If small == 1, 'a' must have at least 2*'len' bits (or 2*min(PRINT_LEN_SMALL,
-len) bits, if SE_PRINT_SMALL is defined). Else, 'a' must have at least 'len' type-ZZ
-values (or min(PRINT_LEN_SMALL, len) type-ZZ values, if SE_PRINT_SMALL is defined).
+Size_req: If small == 1, 'a' must have at least 2*'len' bits (or 2*min(PRINT_LEN_SMALL, len) bits,
+if SE_PRINT_SMALL is defined). Else, 'a' must have at least 'len' type-ZZ values (or
+min(PRINT_LEN_SMALL, len) type-ZZ values, if SE_PRINT_SMALL is defined).
 
 @param[in] name  Name of array
 @param[in] a     Array to print
@@ -624,8 +623,8 @@ Prints an array of uint16_t values
 
 Note: If SE_PRINT_SMALL is defined, will only print up to PRINT_LEN_SMALL elements of 'a'
 
-Size_req: 'a' must have at least 'len' uint16_t values (or min(PRINT_LEN_SMALL, len)
-uint16_t values, if SE_PRINT_SMALL is defined)
+Size_req: 'a' must have at least 'len' uint16_t values (or min(PRINT_LEN_SMALL, len) uint16_t
+values, if SE_PRINT_SMALL is defined)
 
 @param[in] name  Name of array
 @param[in] a     Array to print
@@ -664,10 +663,52 @@ static inline void print_poly_uint16_full(const char *name, const uint16_t *a, P
 }
 
 /**
+Prints an array of uint8_t values
+
+Size_req: 'a' must have at least 'len' uint8_t values (or min(PRINT_LEN_SMALL, len)
+uint8_t values, if SE_PRINT_SMALL is defined)
+
+@param[in] name  Name of array
+@param[in] a     Array to print
+@param[in] len   Number of elements of 'a' to print
+*/
+static inline void print_poly_uint8(const char *name, const uint8_t *a, PolySizeType len)
+{
+    size_t print_len = get_print_len(len);
+    printf("%s : { ", name);
+    for (PolySizeType i = 0; i < print_len; i++)
+    {
+        printf("%" PRIu8, (uint8_t)a[i]);
+        print_comma(i, len);
+    }
+    printf("}\n");
+}
+
+/**
+Prints an array of uint8_t values
+
+Size_req: 'a' must have at least 'len' uint8_t values
+
+@param[in] name  Name of array
+@param[in] a     Array to print
+@param[in] len   Number of elements of 'a' to print
+*/
+static inline void print_poly_uint8_full(const char *name, const uint8_t *a, PolySizeType len)
+{
+    printf("%s : { ", name);
+    for (PolySizeType i = 0; i < len; i++)
+    {
+        printf("%" PRIu8, (uint8_t)a[i]);
+        print_comma(i, len);
+    }
+    printf("}\n");
+}
+
+/**
 Prints a banner with chosen configuration options.
 
-@param[in] sym  Set to 1 if in symmetric mode (will just toggle whether secret key type
-option is printed)
+@param[in] sym  Set to 1 if in symmetric mode (will just toggle whether secret key type option is
+                printed)
 */
 static inline void print_config(bool sym)
 {
@@ -819,6 +860,9 @@ static inline void print_config(bool sym)
     printf("%s compute persistent (#define SE_INDEX_MAP_PERSIST)\n", index_map_str);
 #elif defined(SE_INDEX_MAP_LOAD_PERSIST)
     printf("%s load + persistent (#define SE_INDEX_MAP_LOAD_PERSIST)\n", index_map_str);
+#elif defined(SE_INDEX_MAP_LOAD_PERSIST_SYM_LOAD_ASYM)
+    printf("%s load + persistent (#define SE_INDEX_MAP_LOAD_PERSIST_SYM_LOAD_ASYM)\n",
+           index_map_str);
 #else
     printf("%s Error! Index map type not chosen\n");
     while (1)
@@ -854,9 +898,7 @@ Error handler for uart, required for uart on the NRF5.
 static inline void uart_error_handle(app_uart_evt_t *p_event)
 {
     if (p_event->evt_type == APP_UART_COMMUNICATION_ERROR)
-    {
-        APP_ERROR_HANDLER(p_event->data.error_communication);
-    }
+    { APP_ERROR_HANDLER(p_event->data.error_communication); }
     else if (p_event->evt_type == APP_UART_FIFO_ERROR)
     {
         APP_ERROR_HANDLER(p_event->data.error_code);

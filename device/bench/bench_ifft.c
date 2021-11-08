@@ -8,7 +8,6 @@
 #include "defines.h"
 
 #ifdef SE_ENABLE_TIMERS
-
 #include <math.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -41,16 +40,11 @@
 
 void bench_ifft(void)
 {
-    // ================================
-    //			Configuration
-    // ================================
-    // PolySizeType n = 16;
 #ifdef SE_USE_MALLOC
-    PolySizeType n = 4096;
+    const PolySizeType n = 4096;
 #else
-    PolySizeType n         = SE_DEGREE_N;
+    const PolySizeType n   = SE_DEGREE_N;
 #endif
-    // ================================
     size_t logn = get_log2(n);
 
     size_t size_mult = sizeof(double complex) / sizeof(ZZ);
@@ -66,6 +60,7 @@ void bench_ifft(void)
     ZZ *mempool = calloc(mempool_size, sizeof(ZZ));
 #else
     ZZ mempool[SE_DEGREE_N + IFFT_TEST_ROOTS_MEM];
+    memset(&mempool, 0, (SE_DEGREE_N + IFFT_TEST_ROOTS_MEM) * sizeof(ZZ));
 #endif
 
     double complex *vec = (double complex *)mempool;
@@ -89,7 +84,7 @@ void bench_ifft(void)
     print_bench_banner(bench_name, &parms);
 
     Timer timer;
-    size_t COUNT  = 10;
+    const size_t COUNT = 10;
     float t_total = 0, t_min = 0, t_max = 0;
     volatile float t_curr = 0;
     for (size_t b_itr = 0; b_itr < COUNT + 1; b_itr++)
@@ -133,8 +128,13 @@ void bench_ifft(void)
     print_bench_banner(bench_name, &parms);
 
 #ifdef SE_USE_MALLOC
-    free(mempool);
+    if (mempool)
+    {
+        free(mempool);
+        mempool = 0;
+    }
 #endif
+
     delete_parameters(&parms);
 }
 #endif

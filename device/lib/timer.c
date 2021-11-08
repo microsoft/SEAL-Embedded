@@ -112,8 +112,7 @@ void start_timer(Timer *timer)
 }
 
 /**
-Helper function to calculated the elapsed time. Should only be called after timer has been
-stopped.
+Helper function to calculated the elapsed time. Should only be called after timer has been stopped.
 
 @param[in] start  Starting counter value
 @param[in] stop   Ending counter value
@@ -194,8 +193,7 @@ void start_timer(Timer *timer)
     {
         // nrfx_timer_event_handler_t event_handler = &se_nrf5_timer_timeout_func;
         nrfx_timer_event_handler_t event_handler = se_nrf5_timer_timeout_func;
-        // -- Note that a different frequency value would require a change to
-        // calc_elapsed_time
+        // -- Note that a different frequency value would require a change to calc_elapsed_time
         timer->timer_instance = &timer_instance_global;  // (nrfx_timer_t)NRFX_TIMER_INSTANCE(0);
         timer->timer_config =
             &timer_config_global;  // (nrfx_timer_config_t)NRFX_TIMER_DEFAULT_CONFIG;
@@ -292,8 +290,7 @@ void start_timer(Timer *timer)
 }
 
 /**
-Helper function to calculated the elapsed time. Should only be called after timer has been
-stopped.
+Helper function to calculated the elapsed time. Should only be called after timer has been stopped.
 
 @param[in] start  Starting counter value
 @param[in] stop   Ending counter value
@@ -330,8 +327,7 @@ void start_timer(Timer *timer)
 }
 
 /**
-Helper function to calculated the elapsed time. Should only be called after timer has been
-stopped.
+Helper function to calculated the elapsed time. Should only be called after timer has been stopped.
 
 @param[in] start  Starting counter value
 @param[in] stop   Ending counter value
@@ -391,7 +387,7 @@ Returns the elapsed time of the timer in the requested unit of time.
 @param[in] unit  Time unit
 @returns         The elapsed time of the timer in the requested unit
 */
-float read_timer(Timer timer, TimeUnit unit)
+volatile float read_timer(Timer timer, TimeUnit unit)
 {
     return timer.elapsed_time / (float)(NANO_SEC / unit);
 }

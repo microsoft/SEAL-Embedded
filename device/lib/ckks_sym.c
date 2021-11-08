@@ -43,7 +43,8 @@ size_t ckks_get_mempool_size_sym(size_t degree)
     mempool_size += 4 * n;
 #endif
 
-#if defined(SE_INDEX_MAP_PERSIST) || defined(SE_INDEX_MAP_LOAD_PERSIST)
+#if defined(SE_INDEX_MAP_PERSIST) || defined(SE_INDEX_MAP_LOAD_PERSIST) || \
+    defined(SE_INDEX_MAP_LOAD_PERSIST_SYM_LOAD_ASYM) || defined(SE_SK_INDEX_MAP_SHARED)
     mempool_size += n / 2;
 #endif
 
@@ -63,6 +64,7 @@ ZZ *ckks_mempool_setup_sym(size_t degree)
 {
     size_t mempool_size = ckks_get_mempool_size_sym(degree);
     ZZ *mempool         = calloc(mempool_size, sizeof(ZZ));
+    // printf("mempool_size: %zu\n", mempool_size);
     if (!mempool)
     {
         printf("Error! Allocation failed. Exiting...\n");
@@ -73,15 +75,10 @@ ZZ *ckks_mempool_setup_sym(size_t degree)
 }
 #endif
 
-// Note: first elements of ntt_roots will also contain partial pt
-// This is a convenience function to return the correct addresses
-// This can be called once during initial memory allocation and never needs to
-// be called again And also load in secret key if necessary
-
 void ckks_set_ptrs_sym(size_t degree, ZZ *mempool, SE_PTRS *se_ptrs)
 {
     se_assert(mempool && se_ptrs);
-    size_t n = degree;
+    const size_t n = degree;
 
     // -- First, set everything to set size or 0
     se_ptrs->conj_vals         = (double complex *)mempool;
@@ -122,11 +119,12 @@ void ckks_set_ptrs_sym(size_t degree, ZZ *mempool, SE_PTRS *se_ptrs)
 
     // -- Set pi inverse based on index map type
 #if defined(SE_INDEX_MAP_LOAD)
-    se_ptrs->index_map_ptr = (uint16_t *)&(mempool[4 * n]);
-#elif defined(SE_INDEX_MAP_PERSIST) || defined(SE_INDEX_MAP_LOAD_PERSIST)
+    se_ptrs->index_map_ptr = (uint16_t *)(&(mempool[4 * n]));  // 16n / sizeof(ZZ) = 4n
+#elif defined(SE_INDEX_MAP_PERSIST) || defined(SE_INDEX_MAP_LOAD_PERSIST) || \
+    defined(SE_INDEX_MAP_LOAD_PERSIST_SYM_LOAD_ASYM)
     // -- If ifft, this will be + the ifft_roots size
     //    else, this will be + the ntt size
-    se_ptrs->index_map_ptr = (uint16_t *)&(mempool[4 * n + total_block2_size]);
+    se_ptrs->index_map_ptr = (uint16_t *)(&(mempool[4 * n + total_block2_size]));
     index_map_persist_size = n / 2;
 #endif
 
@@ -135,6 +133,9 @@ void ckks_set_ptrs_sym(size_t degree, ZZ *mempool, SE_PTRS *se_ptrs)
     se_ptrs->ternary = &(mempool[4 * n + total_block2_size + index_map_persist_size]);
 #elif !defined(SE_IFFT_OTF) && defined(SE_SK_PERSISTENT_ACROSS_PRIMES)
     se_ptrs->ternary       = &(mempool[7 * n]);
+#elif defined(SE_SK_INDEX_MAP_SHARED)
+    se_ptrs->ternary       = &(mempool[4 * n]);
+    index_map_persist_size = n / 2;
 #endif
 
 #ifdef SE_MEMPOOL_ALLOC_VALUES
@@ -167,6 +168,8 @@ void ckks_setup_s(const Parms *parms, uint8_t *seed, SE_PRNG *prng, ZZ *s)
         se_assert(prng);
         prng_randomize_reset(prng, seed);
         sample_small_poly_ternary_prng_96(parms->coeff_count, prng, s);
+        // -- TODO: Does not work to sample s for multi prime for now
+        //    if s and index map share mem
     }
     else
     {
@@ -179,12 +182,10 @@ void ckks_sym_init(const Parms *parms, uint8_t *share_seed, uint8_t *seed, SE_PR
                    SE_PRNG *prng, int64_t *conj_vals_int)
 {
     // -- Each prng must be reset & re-randomized once per encode-encrypt sequence.
-    // -- 'prng_randomize_reset' will set the prng seed to a random value and the prng
-    // counter to 0
+    // -- 'prng_randomize_reset' will set the prng seed to a random value and the prng counter to 0
     // -- (If seeds are !NULL, seeds will be used to seed prng instead of a random value.)
     // -- The seed associated with the prng used to sample 'a' can be shared
-    // -- NOTE: The re-randomization is not strictly necessary if counter has not wrapped
-    // around
+    // -- NOTE: The re-randomization is not strictly necessary if counter has not wrapped around
     //    and we share both the seed and starting counter value with the server
     //    for the shareable part.
     prng_randomize_reset(shareable_prng, share_seed);  // Used for 'a'
@@ -209,8 +210,8 @@ void ckks_encode_encrypt_sym(const Parms *parms, const int64_t *conj_vals_int,
     // ==============================================================
     //   Generate ciphertext: (c[1], c[0]) = (a, [-a*s + m + e]_Rq)
     // ==============================================================
-    PolySizeType n     = parms->coeff_count;
-    const Modulus *mod = parms->curr_modulus;
+    const PolySizeType n = parms->coeff_count;
+    const Modulus *mod   = parms->curr_modulus;
 
     // ----------------------
     //     c1 = a <--- U
@@ -220,12 +221,9 @@ void ckks_encode_encrypt_sym(const Parms *parms, const int64_t *conj_vals_int,
 
 #ifndef SE_DISABLE_TESTING_CAPABILITY
     se_assert(conj_vals_int || ep_small);
-    // -- At this point, it is safe to send c1 away. This will allow us to re-use c1's
-    // memory.
-    // -- However, we may be debugging, in which case we need to store c1 somewhere for
-    // debugging later.
-    // -- Note: This provides very little memory savings overall, so isn't necessary to
-    // use.
+    // -- At this point, it is safe to send c1 away. This will allow us to re-use c1's memory.
+    //    However, we may be debugging and need to store c1 somewhere for debugging later.
+    // -- Note: This method provides very little memory savings overall, so isn't necessary to use.
     if (c1_save) memcpy(c1_save, c1, n * sizeof(ZZ));
 #endif
 
@@ -239,8 +237,7 @@ void ckks_encode_encrypt_sym(const Parms *parms, const int64_t *conj_vals_int,
     se_assert(!parms->sample_s);
     load_sk(parms, s_small);
 #elif defined(SE_SK_PERSISTENT_ACROSS_PRIMES)
-    // -- Note that if we are here, ifft type is not otf, which means that
-    // SE_REVERSE_CT_GEN_ENABLED
+    // -- Note that if we are here, ifft type is not otf, which means that SE_REVERSE_CT_GEN_ENABLED
     //    cannot be defined. Therefore, we only have to check that the current
     //    modulus is 0 to know that we are in the first prime of the modulus chain
     if (parms->curr_modulus_idx == 0)
@@ -252,7 +249,8 @@ void ckks_encode_encrypt_sym(const Parms *parms, const int64_t *conj_vals_int,
     // print_poly_small("s (small)", s_small, parms->coeff_count);
 
     // -- Expand and store s in c0
-    // print_poly_small("s (small)", s_small, parms->coeff_count);
+    // print_poly_uint8_full("s (small)", (uint8_t*)s_small, parms->coeff_count/4);
+    // print_poly_small_full("s (small)", s_small, parms->coeff_count);
     expand_poly_ternary(s_small, parms, c0_s);
     // print_poly_full("s", c0_s, parms->coeff_count);
     // print_poly_ternary("s", c0_s, parms->coeff_count, false);
@@ -289,7 +287,7 @@ void ckks_encode_encrypt_sym(const Parms *parms, const int64_t *conj_vals_int,
 
     // -- Calculate ntt(m + e) = ntt(reduce(conj_vals_int)) = ntt(ntt_pte)
     //    and store result in ntt_pte. Note: ntt roots (if required) should already be
-    //    loaded from step 3.
+    //    loaded from above
     ntt_inpl(parms, ntt_roots, ntt_pte);
     // print_poly("ntt(m + e)", ntt_pte, n);
 

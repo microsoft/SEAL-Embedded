@@ -10,11 +10,10 @@
 #include "defines.h"
 
 #ifdef SE_ON_SPHERE_A7
-    #include <stdbool.h>
+#include <stdbool.h>
 
 // static const char *url = "http://neverssl.com";
-// static const char *url = "http://httpstat.us";
-static const char *url = "http://192.168.86.30:1234/";  // Macbook
+static const char *url = "http://httpstat.us";
 
 /**
 Checks that the interface is connected to the internet.
@@ -24,8 +23,8 @@ Checks that the interface is connected to the internet.
 bool is_network_connected(void);
 
 /**
-Checks if there was an error with curl. Prints a message upon error detection (does not
-exit upon error detection).
+Checks if there was an error with curl. Prints a message upon error detection (does not exit upon
+error detection).
 
 @param[in] ret   Curl-function returned value to check
 @param[in] name  A name or message to print upon error detection
@@ -34,9 +33,8 @@ exit upon error detection).
 bool is_curl_error(void *ret, const char *name);
 
 /**
-Sends 'num_data_bytes' of bytes from location pointed to by 'data' over the network
-connection using cURL. Prints a message upon error detection (does not exit upon error
-detection).
+Sends 'num_data_bytes' of bytes from location pointed to by 'data' over the network connection using
+cURL. Prints a message upon error detection (does not exit upon error detection).
 
 @param[in] data            Pointer to location of data to send over the network
 @param[in] num_data_bytes  Number of bytes of 'data' to send

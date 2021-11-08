@@ -187,9 +187,8 @@ static inline bool compare_poly_double_complex(const double complex *a, const do
             return 1;
         }
     }
-    return false;
+    return 0;
 }
-
 // -------------------------------------------------
 // Set uint
 // (Note that clear is already defined in defines.h)
@@ -237,7 +236,7 @@ static inline void clear_double_complex(double complex *vec, size_t n)
 
 static inline void set_double_complex(double complex *vec, size_t n, flpt val)
 {
-    for (size_t i = 0; i < n; i++) vec[i] = (double complex)_complex(val, 0);
+    for (size_t i = 0; i < n; i++) vec[i] = (double complex)_complex((double)val, (double)0);
 }
 
 // ----------------------
@@ -269,25 +268,19 @@ static inline void random_zzq_poly(ZZ *poly, size_t n, Modulus *q)
 static inline void gen_double_complex_eighth_vec(double complex *vec, int64_t div, size_t n)
 {
     for (size_t i = 0; i < n; i++)
-    {
-        vec[i] = (double complex)(gen_double_eighth(div), gen_double_eighth(div));
-    }
+    { vec[i] = (double complex)(gen_double_eighth(div), gen_double_eighth(div)); }
 }
 
 static inline void gen_double_complex_quarter_vec(double complex *vec, int64_t div, size_t n)
 {
     for (size_t i = 0; i < n; i++)
-    {
-        vec[i] = (double complex)(gen_double_quarter(div), gen_double_quarter(div));
-    }
+    { vec[i] = (double complex)(gen_double_quarter(div), gen_double_quarter(div)); }
 }
 
 static inline void gen_double_complex_half_vec(double complex *vec, int64_t div, size_t n)
 {
     for (size_t i = 0; i < n; i++)
-    {
-        vec[i] = (double complex)(gen_double_half(div), gen_double_half(div));
-    }
+    { vec[i] = (double complex)(gen_double_half(div), gen_double_half(div)); }
 }
 
 static inline void gen_double_complex_vec(double complex *vec, int64_t div, size_t n)

@@ -7,35 +7,35 @@ To enable wider experiments by developers and researchers, SEAL-Embedded include
 
 ## Acknowledgments
 
-The majority of SEAL-Embedded was developed by [Deepika Natarajan](https://github.com/dnat112) from University of Michigan during an internship at Microsoft, despite not presented in the Git history.
+The majority of SEAL-Embedded was developed by [Deepika Natarajan](https://github.com/dnat112) from University of Michigan during an internship at Microsoft, despite her not being present in the Git history.
 
 ## Introduction
 
-Homomorphic encryption allows computation on encryption data without decryption.
-To understand what homomorphic encryption and Microsoft SEAL are, we refer readers to [the Introduction section of Microsoft SEAL](https://github.com/microsoft/SEAL#introduction).
-Typically, a client generates a secret key and public keys; data are encrypted with the secret key or public keys; encrypted data are sent to a untrusted server for computation; encrypted results are returned to the client who then decrypts the results.
-SEAL-Embedded enables embedded devices to encrypt data; it *does not* perform key generation, computation on encrypted data, or decryption.
+Homomorphic encryption allows for computation on encryption data without decryption.
+Typically, a client generates a secret key and public keys; data is encrypted with the secret key or public keys; encrypted data is sent to a untrusted server for computation; encrypted results are returned to the client who then decrypts the results.
+Interested users of SEAL-Embedded should read [the Introduction section of Microsoft SEAL](https://github.com/microsoft/SEAL#introduction) prior to using SEAL-Embedded to learn more about homomorphic encryption and the Microsoft SEAL library.
+SEAL-Embedded enables embedded devices to encrypt data; it *does not* perform key generation, computation on encrypted data, or decryption (but does include an easy-to-use `adapter` interface to perform key generation with Microsoft SEAL).
 
-SEAL-Embedded consists of mainly two components: a device library ([`device/lib`](device/lib)) to build an application that encrypts data and an adapter application ([`adapter`](adapter)) for compability with Microsoft SEAL.
+SEAL-Embedded consists of mainly two components: a device library ([`device/lib`](device/lib)) to build an application that encrypts data, and an adapter application ([`adapter`](adapter)) for compability with Microsoft SEAL.
 The simplest workflow is described as follows:
-1. run adapter to generate a secret key and public keys;
-1. build an application with device library and create an image of the application together with public keys for a target device;
-1. run adapter on an remote server to receive and serialize encrypted data to Microsoft-SEAL-compatible format;
-1. build an application with Microsoft SEAL to compute on encrypted data;
-1. decrypt encrypted results with Microsoft SEAL on a safe device that has the secret key.
+1. Run the adapter to generate a secret key and public keys
+1. Build and run an application with the device library by creating an image of the application together with the public key (for asymmetric encryption) or secret key (for symmetric encryption) for a target device
+1. Run the adapter on an remote server to receive and serialize encrypted data to Microsoft-SEAL-compatible format
+1. Build and run an application with Microsoft SEAL to compute on encrypted data
+1. Decrypt the encrypted results with Microsoft SEAL on a safe device that has the secret key
 
 ## Warning
 
 This library is research code and is not yet intended for production use.
 Use at your own risk.
-Holding secret key on device's storage for asymmetric encryption is extremely dangerous, regardless of whether the storage type is persistent or not.
-Use public key (asymmetric encryption), or consult a security expert.
+Storing a secret key on device (i.e., using symmetric encryption) can be extremely dangerous. 
+Use public key (asymmetric encryption), or consult a security expert before creating a symmetric key deployment.
 See more information related to [SECURITY](SECURITY.md).
 
 ## Building SEAL-Embedded
 
-On all platforms SEAL-Embedded is built with CMake.
-We recommend using out-of-source build although in-source build works.
+On all platforms, SEAL-Embedded is built with CMake.
+We recommend using an out-of-source build, although in-source builds work as well.
 Below we give instructions for how to configure and build SEAL-Embedded components.
 
 ### SEAL-Embedded Adapter
@@ -47,7 +47,7 @@ On Unix-like systems:
 ```powershell
 cd adapter
 cmake -S . -B build
-cmake --build build
+cmake --build build -j
 ./build/bin/se_adapter # run adapter
 ```
 
@@ -55,15 +55,30 @@ On Windows, following [this guide](https://docs.microsoft.com/en-us/cpp/build/cm
 
 ### SEAL-Embedded Device Library
 
-The device library comes with optional executables: unit tests ([`device/test`](device/test)) and benchmark ([`device/bench`](device/bench)).
-The library itself, unit tests, and benchmark can be built on a native system (Linux or macOS) with same development environment listed in SEAL-Embedded adapter.
+The device library comes with optional executables: unit tests ([`device/test`](device/test)) and benchmarks ([`device/bench`](device/bench)).
+The library itself, unit tests, and benchmarks can be built on a native system (Linux or macOS) with the same development environment listed in SEAL-Embedded adapter.
 ```powershell
-cd adapter
+cd device 
 cmake -S . -B build -DSE_BUILD_LOCAL=ON
-cmake --build build
+cmake --build build -j
+./build/bin/seal_embedded_tests # run tests locally
 ```
 This by default builds a library and unit tests.
-The following options are configurable for custom builds.
+
+To build the library and run tests for the Azure Sphere A7 target instead:
+```powershell
+cd device 
+cmake -G Ninja -S . -B build -DSE_BUILD_LOCAL=OFF
+cmake --build build -j
+sh ./scripts/sphere_a7_launch_cl.sh
+```
+Open another terminal and invoke gdb:
+```powershell
+sh ./scripts/gdb_launch_sphere_a7.sh
+```
+The output should now print to the first terminal.
+
+The following options are configurable for custom builds (default settings are in bold).
 
 | CMake option | Values | Information  |
 | ------------ | ------ | ------------ |
@@ -73,14 +88,25 @@ The following options are configurable for custom builds.
 | CMAKE_BUILD_TYPE | **Debug**</br>Release</br>MinSizeRel</br>RelWithDebInfo | Set to `Release` for the best run-time performance and the smallest code size. |
 | SE_BUILD_TYPE | **Tests**</br>Bench</br>Lib | Set to `Bench` to build instead the benchmark executable, to `Lib` to build a library only. |
 
-To target an embedded device, the specific SDK for the target device is usually required.
-Either the unit tests or the benchmark can be built and imaged on the device.
-Using Azure Sphere as an example, please follow [this guide](https://docs.microsoft.com/en-us/azure-sphere/install/qs-blink-application?tabs=windows%2Ccliv2beta&pivots=visual-studio).
-**Note: SEAL-Embedded Adapter must be built and executed first to generate required key and precomputation files.**
-Ultimately, the users can develop their own application following [this guide](https://docs.microsoft.com/en-us/azure-sphere/install/qs-real-time-application?tabs=windows%2Ccliv2beta&pivots=visual-studio) and statically link to SEAL-Embedded device library.
+**Note: SEAL-Embedded device code is built in Debug and Local mode by default!**
+We recommend that all users of the library first ensure that the included tests and their target application run in `Debug` mode locally, for their desired memory configuration (see: [`user_defines.h`](device/lib/user_defines.h) and the SEAL-Embedded [paper](https://tches.iacr.org/index.php/TCHES/article/view/8991) for more details on memory configuration options).
+After verifying that these tests pass, users should change `CMAKE_BUILD_TYPE` to `Release`, uncomment `SE_DISABLE_TESTING_CAPABILITY` in user_defines.h, and set `SE_ASSERT_TYPE` to `0` (`None`) in user_defines.h, for optimal performance.
+To run benchmarks, change `SE_BUILD_TYPE` to `Bench` and uncomment `SE_ENABLE_TIMERS` in [`defines.h`](device/lib/defines.h).
+Users should verify that everything runs as expected in their local development environment first before targetting an embedded device.
 
-For targeting ARM M4 on Azure Sphere or other development boards, please follow related documents and tutorials.
-For the convinience of verifying ARM M4 compatibility, we also provide [`device/lib/sdk_config.h`](device/lib/sdk_config.h) for an easier deployment on Nordic Semiconductor nRF5* series.
+**Note: SEAL-Embedded Adapter must be built and executed first to generate required key and precomputation files.**
+The adapter by default generates and writes files to `device/adapter_output_files`. 
+If `device/adapter_output_files` does not exist, you should create this folder prior to running the adapter. 
+Note that the adapter is not intended to support generation or usage of multiple parameter instances at once (i.e., using the adapter to create files for degree = 1024, then using the adapter to create files for degree = 4096, will cause some of the files generated for degree = 1024 to be overwritten).
+
+To target an embedded device, the specific SDK for the target device is usually required.
+Either the unit tests or benchmarks can be built and imaged on the device.
+Using the Azure Sphere as an example, please follow [this guide](https://docs.microsoft.com/en-us/azure-sphere/install/qs-blink-application?tabs=windows%2Ccliv2beta&pivots=visual-studio).
+Ultimately, users can develop their own application following [this guide](https://docs.microsoft.com/en-us/azure-sphere/install/qs-real-time-application?tabs=windows%2Ccliv2beta&pivots=visual-studio) and statically link to the SEAL-Embedded device library.
+
+For targeting ARM M4 on the Azure Sphere or other development boards, please follow related documents and tutorials. 
+Note that stack size limitations may prevent certain configurations of the library to run on an Azure Sphere M4 target.
+For the convinience of verifying ARM M4 compatibility, we also provide [`device/lib/sdk_config.h`](device/lib/sdk_config.h) for an easier deployment on Nordic Semiconductor nRF5* series devices.
 
 ## Contributing
 

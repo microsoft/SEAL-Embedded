@@ -35,9 +35,10 @@ Storage for encryption parameters.
 @param small_u           Set to 1 to store the 'u' vector in small form while processing
                          Note: SEAL-Embedded currently only works if this is 1
 @param curr_param_direction  Set to 1 to operate over primes in reverse order. Only
-available if SE_REVERSE_CT_GEN_ENABLED is enabled.
+                             available if SE_REVERSE_CT_GEN_ENABLED is enabled.
 @param skip_ntt_load         Set to 1 to skip a load of the NTT roots (if applicable,
-based on NTT option chosen.) Only available if SE_REVERSE_CT_GEN_ENABLED is enabled.
+                             based on NTT option chosen.) Only available if
+                             SE_REVERSE_CT_GEN_ENABLED is enabled.
 */
 typedef struct
 {
@@ -84,8 +85,7 @@ static inline size_t get_log2(size_t val)
 }
 
 /**
-Releases the memory allocated for modulus chain is SE_USE_MALLOC is defined.
-Does nothing otherwise.
+Releases the memory allocated for modulus chain is SE_USE_MALLOC is defined. Does nothing otherwise.
 
 @param[in,out] parms  Parameters instance
 */
@@ -107,12 +107,12 @@ Updates parms to next modulus in modulus chain.
 bool next_modulus(Parms *parms);
 
 /**
-Sets up SEAL-Embedded parameters object with default (30-bit) moduli for requested degree
-for CKKS.
+Sets up SEAL-Embedded parameters object with default moduli for requested degree for CKKS.
+Also sets the scale.
 
-Req: degree must be a power of 2 (between 2 and 16384, inclusive)
-Note: Moduli should be the same as the 30-bit default moduli chosen by the SEAL-Embedded
-adapter (not including the special prime).
+Req: degree must be a power of 2 (between 1024 and 16384, inclusive)
+Note: Moduli should be the same as the default moduli chosen by the SEAL-Embedded adapter
+(not including the special prime).
 
 @param[in]  degree   Polynomial ring degree
 @param[in]  nprimes  Number of prime moduli
@@ -121,15 +121,16 @@ adapter (not including the special prime).
 void set_parms_ckks(size_t degree, size_t nprimes, Parms *parms);
 
 /**
-Sets up SEAL-Embedded parameters object according to requested custom parameters for CKKS.
-If either 'modulus_vals' or 'ratios' is NULL, uses default values for 30-bit primes.
+Sets up SEAL-Embedded parameters object according to requested custom parameters for CKKS. If either
+'modulus_vals' or 'ratios' is NULL, uses default values.
 
 @param[in]  degree        Polynomial ring degree
+@param[in]  scale         Scale to use for encoding/decoding
 @param[in]  nprimes       Number of prime moduli
 @param[in]  modulus_vals  An array of nprimes type-ZZ modulus values.
 @param[in]  ratios        An array of const_ratio values for each custom modulus value
-(high word, followed by low word).
+                          (high word, followed by low word).
 @param[out] parms         Parameters instance
 */
-void set_custom_parms_ckks(size_t degree, size_t nprimes, const ZZ *modulus_vals, const ZZ *ratios,
+void set_custom_parms_ckks(size_t degree, double scale, size_t nprimes, const ZZ *modulus_vals, const ZZ *ratios,
                            Parms *parms);

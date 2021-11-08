@@ -21,8 +21,24 @@ using namespace std;
 using namespace seal;
 using namespace seal::util;
 
+uint64_t endian_flip(uint64_t a)
+{
+    uint64_t b1 = a & 0xFF;
+    uint64_t b2 = (a >> 8) & 0xFF;
+    uint64_t b3 = (a >> 16) & 0xFF;
+    uint64_t b4 = (a >> 24) & 0xFF;
+    uint64_t b5 = (a >> 32) & 0xFF;
+    uint64_t b6 = (a >> 40) & 0xFF;
+    uint64_t b7 = (a >> 48) & 0xFF;
+    uint64_t b8 = (a >> 56) & 0xFF;
+
+    uint64_t a_back = (b1 << 56) | (b2 << 48) | (b3 << 40) | (b4 << 32) | (b5 << 24) | (b6 << 16) |
+                      (b7 << 8) | b8;
+    return a_back;
+}
+
 void gen_save_secret_key(string sk_fpath, string str_sk_fpath, string seal_sk_fpath,
-                         const SEALContext &context)
+                         const seal::SEALContext &context)
 {
     KeyGenerator keygen(context);
     SecretKey sk1 = keygen.secret_key();
@@ -34,7 +50,7 @@ void gen_save_secret_key(string sk_fpath, string str_sk_fpath, string seal_sk_fp
     // -- Check to make sure we can read back secret key correctly.
     // -- First, generate a new secret key. This should be the same as the
     //    old secret key since it will be created from keygen's copy.
-    bool incl_sp  = 1;  // include special prime
+    bool incl_sp  = true;  // include special prime
     SecretKey sk2 = sk1;
     compare_sk(context, sk1, sk2, incl_sp, true);
 
@@ -49,18 +65,19 @@ void gen_save_secret_key(string sk_fpath, string str_sk_fpath, string seal_sk_fp
 }
 
 void gen_save_public_key(string dirpath, string seal_pk_fpath, string sk_fpath,
-                         string seal_sk_fpath, const SEALContext &context, bool use_seal_sk_fpath)
+                         string seal_sk_fpath, const seal::SEALContext &context,
+                         bool use_seal_sk_fpath)
 {
     SecretKey sk;
     if (use_seal_sk_fpath)
         sk_seal_load(seal_sk_fpath, context, sk);
     else
     {
-        auto &sk_parms            = context.key_context_data()->parms();
-        auto &coeff_modulus       = sk_parms.coeff_modulus();
-        size_t coeff_modulus_size = coeff_modulus.size();
-        size_t n                  = sk_parms.poly_modulus_degree();
-        sk.data().resize(mul_safe(n, coeff_modulus_size));
+        auto &sk_parms      = context.key_context_data()->parms();
+        auto &coeff_modulus = sk_parms.coeff_modulus();
+        size_t nprimes      = coeff_modulus.size();
+        size_t n            = sk_parms.poly_modulus_degree();
+        sk.data().resize(mul_safe(n, nprimes));
         sk_bin_file_load(sk_fpath, context, sk);
         sk.data().parms_id() = context.key_parms_id();
     }
@@ -77,8 +94,9 @@ void gen_save_public_key(string dirpath, string seal_pk_fpath, string sk_fpath,
 
     // -- Write the public key, prime by prime, across multiple files
     //    Make sure to write special prime to file as well.
-    bool incl_sp = 1;
-    pk_bin_file_save(dirpath, context, pk1_wr, incl_sp);
+    bool incl_sp         = true;
+    bool high_byte_first = false;
+    pk_bin_file_save(dirpath, context, pk1_wr, incl_sp, high_byte_first);
 
     // -- Check to make sure we can read back public key correctly. --
 
@@ -94,7 +112,7 @@ void gen_save_public_key(string dirpath, string seal_pk_fpath, string sk_fpath,
     compare_pk(context, pk1_wr, pk2_wr, incl_sp, false);
 
     // -- Read in saved public key from file
-    pk_bin_file_load(dirpath, context, pk2_wr, incl_sp);
+    pk_bin_file_load(dirpath, context, pk2_wr, incl_sp, high_byte_first);
     compare_pk(context, pk1_wr, pk2_wr, incl_sp, true);
 }
 
@@ -104,45 +122,42 @@ void gen_save_ifft_roots(string dirpath, const SEALContext &context, bool high_b
     size_t n = context.key_context_data()->parms().poly_modulus_degree();
     vector<complex<double>> ifft_roots(n);
 
-    shared_ptr<util::ComplexRoots> complex_roots;
-    complex_roots = make_shared<ComplexRoots>(ComplexRoots(2 * n, MemoryPoolHandle::Global()));
+    std::shared_ptr<util::ComplexRoots> croots =
+        make_shared<ComplexRoots>(ComplexRoots(2 * n, MemoryPoolHandle::Global()));
 
     int logn          = static_cast<int>(log2(n));
-    bool better_order = 1;
+    bool better_order = true;
     if (better_order)
     {
         for (size_t i = 0; i < n; i++)
         {
             ifft_roots[i] =
-                conj(complex_roots->get_root(static_cast<size_t>(reverse_bits(i - 1, logn) + 1)));
+                conj(croots->get_root(static_cast<size_t>(reverse_bits(i - 1, logn) + 1)));
         }
     }
     else
     {
         for (size_t i = 0; i < n; i++)
-        {
-            ifft_roots[i] =
-                conj(complex_roots->get_root(static_cast<size_t>(reverse_bits(i, logn))));
-        }
+        { ifft_roots[i] = conj(croots->get_root(static_cast<size_t>(reverse_bits(i, logn)))); }
     }
 
     string fname = dirpath + "ifft_roots_" + to_string(n) + +".dat";
-    fstream outfile(fname.c_str(), ios::out | ios::binary | ios::trunc);
+    fstream file(fname.c_str(), ios::out | ios::binary | ios::trunc);
 
-    fstream outfile2;
+    fstream file2;
     if (string_roots)
     {
         string fname2 = dirpath + "str_ifft_roots.h";
-        // string fname2 = dirpath + "str_ifft_roots_" + to_string(n) + ".h";
-        outfile2.open(fname2, ios::out | ios::trunc);
+        file2.open(fname2, ios::out | ios::trunc);
         size_t num_uint64_elements = n * 2;  // real part + imag part
-        outfile2 << "#pragma once\n\n#include \"defines.h\"\n\n#include <stdint.h>\n\n";
-        outfile2 << "#if defined(SE_DATA_FROM_CODE_COPY) || "
-                    "defined(SE_DATA_FROM_CODE_DIRECT)\n";
-        outfile2 << "#ifdef SE_IFFT_LOAD_FULL\n";
-        outfile2 << "#ifdef SE_DATA_FROM_CODE_COPY\nconst\n#endif" << endl;
-        outfile2 << "// -- IFFT roots for polynomial ring degree = " << n << "\n";
-        outfile2 << "uint64_t ifft_roots_save[" << num_uint64_elements << "] = { ";
+        file2 << "#pragma once\n\n#include \"defines.h\"\n\n#include <stdint.h>\n\n";
+        file2 << "#if defined(SE_DATA_FROM_CODE_COPY) || "
+                 "defined(SE_DATA_FROM_CODE_DIRECT)\n";
+        file2 << "#ifdef SE_IFFT_LOAD_FULL\n";
+        file2 << "#ifdef SE_DATA_FROM_CODE_COPY\nconst\n#endif" << endl;
+        file2 << "// -- IFFT roots for polynomial ring degree = " << n << "\n";
+        // -- Save using uint64_t instead of double to maintain full precision
+        file2 << "uint64_t ifft_roots_save[" << num_uint64_elements << "] = { ";
     }
     for (size_t i = 0; i < n; i++)
     {
@@ -156,182 +171,221 @@ void gen_save_ifft_roots(string dirpath, const SEALContext &context, bool high_b
             uint64_t data = *((uint64_t *)(&data_d));  // we can only shift an int type
 
             // -- Debugging info
-            // if (i < 5) cout << "data_d: " << data_d << endl;
-            // if (i < 5) cout << "data  : " << data << endl;
+            // if (i < 10) cout << "data_d: " << data_d << endl;
+            // if (i < 5) cout << "data  : " << std::hex << data << std::dec << endl;
 
             for (size_t j = 0; j < 8; j++)  // write one byte at a time
             {
                 size_t shift_amt = (high_byte_first) ? 7 - j : j;
                 uint8_t byte     = (data >> (8 * shift_amt)) & 0xFF;
-                outfile.put(static_cast<char>(byte));
+                file.put(static_cast<char>(byte));
             }
             if (string_roots)
             {
-                // cout << "data string: " << to_string(data) << endl;
                 string next_str = (((i + 1) < n) || !k) ? ", " : "};\n";
-                outfile2 << to_string(data) + "ULL" << next_str;
-                if (!(i % 64) && i && k) outfile2 << "\n";
+                uint64_t data_s = high_byte_first ? endian_flip(data) : data;
+                file2 << "0x" << std::hex << data_s << std::dec << next_str;
+                if (!(i % 64) && i && k) file2 << "\n";
             }
         }
     }
-    outfile.close();
+    file.close();
     if (string_roots)
     {
-        outfile2 << "\n#endif\n#endif" << endl;
-        outfile2.close();
+        file2 << "\n#endif\n#endif" << endl;
+        file2.close();
     }
 }
 
 void gen_save_ntt_roots_header(string dirpath, const SEALContext &context, bool inverse)
 {
-    auto &key_parms           = context.key_context_data()->parms();
-    size_t n                  = key_parms.poly_modulus_degree();
-    size_t coeff_modulus_size = key_parms.coeff_modulus().size();
-    assert(coeff_modulus_size >= 2);
+    auto &key_parms = context.key_context_data()->parms();
+    size_t nprimes  = key_parms.coeff_modulus().size();
+    size_t n        = key_parms.poly_modulus_degree();
 
-    string fpath = dirpath + "str_";
-    if (inverse) fpath += "i";
-    fpath += "ntt_roots_addr_array.h";
-    fstream outfile(fpath.c_str(), ios::out | ios::trunc);
+    string ntt_str      = inverse ? "intt" : "ntt";
+    string ntt_str_caps = inverse ? "INTT" : "NTT";
 
-    bool incl_sp_sf = false;  // No need to include the special prime for the headers
+    string fpath = dirpath + "str_" + ntt_str + "_roots_addr_array.h";
+    fstream file(fpath.c_str(), ios::out | ios::trunc);
 
-    // const bool large_primes = false; // Assume this
+    // -- No need to include the special prime for the headers
+    bool incl_sp_sf            = (nprimes == 1) ? true : false;
+    size_t string_file_nprimes = incl_sp_sf ? nprimes : nprimes - 1;
 
-    outfile << "#pragma once\n\n#include \"defines.h\"\n\n";
-    outfile << "#if defined(SE_DATA_FROM_CODE_COPY) || defined(SE_DATA_FROM_CODE_DIRECT)\n\n";
-    outfile << "#include <stdint.h>\n\n";
-
-    stringstream pk_addr_str;
-
-    size_t string_file_coeff_modulus_size =
-        incl_sp_sf ? coeff_modulus_size : coeff_modulus_size - 1;
+    file << "#pragma once\n\n#include \"defines.h\"\n\n";
+    file << "#if defined(SE_DATA_FROM_CODE_COPY) || defined(SE_DATA_FROM_CODE_DIRECT)\n\n";
+    file << "#include <stdint.h>\n\n";
 
     for (size_t outer = 0; outer < 2; outer++)
     {
-        if (inverse)
-        {
-            if (outer == 0)
-                outfile << "#ifdef SE_INTT_REG\n";
-            else
-                outfile << "#elif defined(SE_INTT_FAST)\n";
-        }
+        if (outer == 0)
+            file << "#ifdef SE_" << ntt_str_caps << "_REG\n";
         else
+            file << "#elif defined(SE_" << ntt_str_caps << "_FAST)\n";
+        for (size_t t = 0; t < string_file_nprimes; t++)
         {
-            if (outer == 0)
-                outfile << "#ifdef SE_NTT_REG\n";
-            else
-                outfile << "#elif defined(SE_NTT_FAST)\n";
+            auto q = context.key_context_data()->parms().coeff_modulus()[t].value();
+            assert(log2(q) <= 30);
+            string fpath = "str_" + ntt_str;
+            if (outer == 1) fpath += "_fast";
+            fpath += "_roots_" + to_string(n) + "_" + to_string(q) + ".h";
+            cout << "writing to file: " << dirpath + fpath << endl;
+            file << "   #include \"" << fpath << "\"" << endl;
         }
-        for (size_t t = 0; t < string_file_coeff_modulus_size; t++)
-        {
-            string fpath_common = "roots_";
-            auto coeff_modulus  = context.key_context_data()->parms().coeff_modulus()[t].value();
-            fpath_common += to_string(n) + "_" + to_string(coeff_modulus);
-
-            string fpath = dirpath + "str_";
-            if (inverse) fpath += "i";
-            fpath += "ntt" + fpath_common + ".h";
-            cout << "writing to file: " << fpath << endl;
-
-            outfile << "   #include \"str_";
-            if (inverse) outfile << "i";
-            outfile << "ntt_";
-            if (outer) outfile << "fast_";
-            outfile << fpath_common + ".h\"" << endl;
-        }
-        if (outer == 1) outfile << "#endif\n";
+        if (outer == 1) file << "#endif\n";
     }
-
-    outfile << "\nZZ* ";
-    if (inverse) outfile << "i";
-    outfile << "ntt_roots_addr[" << string_file_coeff_modulus_size << "] =\n{\n";
+    file << "\nZZ* " << ntt_str << "_roots_addr[" << string_file_nprimes << "] =\n{\n";
 
     // -- No need to include special prime in string files
-    for (size_t t = 0; t < string_file_coeff_modulus_size; t++)
+    for (size_t t = 0; t < string_file_nprimes; t++)
     {
-        outfile << "  &(((ZZ*)(";
-        if (inverse) outfile << "i";
-        outfile << "ntt_roots_save_prime" << to_string(t) << "))[0])";
-        if (t == string_file_coeff_modulus_size - 1)
-            outfile << "\n};" << endl;
+        file << "  &(((ZZ*)(" << ntt_str << "_roots_save_prime" << to_string(t) << "))[0])";
+        if (t == string_file_nprimes - 1)
+            file << "\n};" << endl;
         else
-            outfile << "," << endl;
+            file << "," << endl;
     }
-    outfile << "\n#endif\n";
-    outfile.close();
+    file << "\n#endif\n";
+    file.close();
 }
 
 void gen_save_ntt_roots(string dirpath, const SEALContext &context, bool lazy, bool inverse,
                         bool high_byte_first, bool string_roots)
 {
+    // -- Note: SEAL stores the NTT tables in bit-rev form
     auto ntt_tables_ptr = context.key_context_data()->small_ntt_tables();
     auto &key_parms     = context.key_context_data()->parms();
     size_t n            = key_parms.poly_modulus_degree();
+    size_t nprimes      = key_parms.coeff_modulus().size();
 
     const bool large_primes = false;
-    for (size_t mod_loop = 0; mod_loop < key_parms.coeff_modulus().size(); mod_loop++)
-    {
-        const NTTTables *tables            = &(ntt_tables_ptr[mod_loop]);
-        Modulus modulus                    = tables->modulus();
-        MultiplyUIntModOperand inv_n       = tables->inv_degree_modulo();
-        MultiplyUIntModOperand w_n_minus_1 = tables->get_from_inv_root_powers(n - 1);
-        MultiplyUIntModOperand inv_n_w;
-        inv_n_w.set(multiply_uint_mod(inv_n.operand, w_n_minus_1, modulus), modulus);
 
-        // -- Debugging
-        cout << "inv_n.operand  : " << inv_n.operand << endl;
-        cout << "inv_n.quotient : large: " << inv_n.quotient;
-        cout << " small: " << upper32(inv_n.quotient) << endl;
-        cout << "inv_n_w.operand: " << inv_n_w.operand << endl;
-        cout << "inv_n.quotient : large: " << inv_n_w.quotient;
-        cout << " small: " << upper32(inv_n_w.quotient) << endl;
+    string ntt_str      = inverse ? "intt" : "ntt";
+    string ntt_str_caps = inverse ? "INTT" : "NTT";
+
+    for (size_t t = 0; t < nprimes; t++)
+    {
+        const NTTTables *tables = &(ntt_tables_ptr[t]);
+        assert(tables);
+        Modulus modulus = tables->modulus();
+
+        auto q             = modulus.value();
+        bool large_modulus = (log2(q) > 32) ? true : false;
+
+        assert(((t <= (nprimes - 1)) && (log2(q) <= 30)) ||
+               ((t == nprimes - 1) && (log2(q) <= 64) && (nprimes != 1)));
+
+        /*
+        SEAL-Embedded needs the following constant values related to the NTT/INTT
+        - If NTT compute type is "on-the-fly" or "one-shot":
+            >     w = Value of the first power of the NTT root, for each prime qi
+        - If INTT compute type is "on-the-fly" or "one-shot" (and on-device testing is desired):
+            > inv_w = Value of the first power of the INTT root, for each prime qi
+                - This should be equal to w^(-1) mod qi
+        - If INTT compute type is non-fast (and on-device testing is desired):
+            > inv_n       = n^(-1) mod qi
+            > last_inv_sn = (last_inv_s * inv_n) mod qi
+                - Where last_inv_s is the last inverse NTT root power used in an INTT loop
+                 (i.e., is last power stored in inv_root_powers)
+        */
+        auto logn = seal::util::get_power_of_two(n);
+        cout << "logn: " << logn << endl;
+        auto bit_rev_1               = seal::util::reverse_bits((uint64_t)1, logn);
+        MultiplyUIntModOperand w     = tables->get_from_root_powers(bit_rev_1);
+        MultiplyUIntModOperand inv_w = tables->get_from_inv_root_powers(1);
+        {
+            uint64_t inv_w_check;
+            if (!try_invert_uint_mod(w.operand, modulus, inv_w_check))
+                throw invalid_argument("invalid modulus");
+            if (inv_w.operand != inv_w_check)
+            {
+                cout << "inv_w_check:   " << inv_w_check << endl;
+                cout << "inv_w.operand: " << inv_w.operand << endl;
+                throw;
+            }
+        }
+        MultiplyUIntModOperand inv_n      = tables->inv_degree_modulo();  // n^(-1) mod qi
+        MultiplyUIntModOperand last_inv_s = tables->get_from_inv_root_powers(n - 1);
+        MultiplyUIntModOperand last_inv_sn;
+        last_inv_sn.set(multiply_uint_mod(inv_n.operand, last_inv_s, modulus), modulus);
+        {
+            // -- Check
+            uint64_t last_ii_s;
+            if (!try_invert_uint_mod(last_inv_s.operand, modulus, last_ii_s))
+                throw invalid_argument("invalid modulus");
+
+            uint64_t last_inv_sn_check;
+            auto n_last_ii_s = multiply_uint_mod(n, last_ii_s, modulus);
+            if (!try_invert_uint_mod(n_last_ii_s, modulus, last_inv_sn_check))
+                throw invalid_argument("invalid modulus");
+            if (last_inv_sn.operand != last_inv_sn_check)
+            {
+                cout << "last_ii_s:           " << last_ii_s << endl;
+                cout << "n_last_ii_s:         " << n_last_ii_s << endl;
+                cout << "last_inv_sn_check:   " << last_inv_sn_check << endl;
+                cout << "last_inv_sn.operand: " << last_inv_sn.operand << endl;
+                throw;
+            }
+        }
+
+        // -- Debugging / For filling in SEAL-Embedded constants
+        cout << "\n--- Printing constants for n = " << n;
+        cout << ", q = " << q << " ---\n" << endl;
+        cout << "\t(w = first power of NTT root)" << endl;
+        cout << "\t w.operand            : " << w.operand << endl;
+        cout << "\t w.quotient           : " << upper32(w.quotient) << " (small) = ";
+        cout << w.quotient << " (large)\n" << endl;
+        cout << "\t(inv_w = w^(-1) mod qi = first power of INTT root)" << endl;
+        cout << "\t inv_w.operand        : " << inv_w.operand << endl;
+        cout << "\t inv_w.quotient       : " << upper32(inv_w.quotient) << " (small) = ";
+        cout << inv_w.quotient << " (large)\n" << endl;
+        cout << "\t(inv_n = n^(-1) mod qi)" << endl;
+        cout << "\t inv_n.operand        : " << inv_n.operand << endl;
+        cout << "\t inv_n.quotient       : " << upper32(inv_n.quotient) << " (small) = ";
+        cout << inv_n.quotient << " (large)\n" << endl;
+        cout << "\t(last_inv_sn = (last_inv_s * inv_n)  mod qi)" << endl;
+        cout << "\t last_inv_sn.operand  : " << last_inv_sn.operand << endl;
+        cout << "\t last_inv_sn.quotient : " << upper32(last_inv_sn.quotient) << " (small) = ";
+        cout << last_inv_sn.quotient << " (large)\n\n" << endl;
 
         // -- Create file
-        string fname = dirpath;
-        fname += (!inverse) ? "ntt" : "intt";
-        // if (lazy) fname += "_lazy";
+        string fname = dirpath + ntt_str;
         if (lazy) fname += "_fast";
-        fname += "_roots_" + to_string(n) + "_" + to_string(modulus.value()) + ".dat";
-        fstream outfile(fname.c_str(), ios::out | ios::binary | ios::trunc);
+        fname += "_roots_" + to_string(n) + "_" + to_string(q) + ".dat";
+        fstream file(fname.c_str(), ios::out | ios::binary | ios::trunc);
         cout << "Writing to " << fname << endl;
 
-        fstream outfile2;
+        fstream file2;
         if (string_roots)
         {
-            string fname2 = dirpath;
-            fname2 += (!inverse) ? "str_ntt" : "str_intt";
-            // if (lazy) fname2 += "_lazy";
+            string fname2 = dirpath + "str_" + ntt_str;
             if (lazy) fname2 += "_fast";
-            fname2 += "_roots_" + to_string(n) + "_" + to_string(modulus.value()) + ".h";
-            outfile2.open(fname2, ios::out | ios::trunc);
+            fname2 += "_roots_" + to_string(n) + "_" + to_string(q) + ".h";
+            file2.open(fname2, ios::out | ios::trunc);
             size_t num_elements = lazy ? n * 2 : n;  // real part + imag part
-            outfile2 << "#pragma once\n\n#include \"defines.h\"\n\n";
-            outfile2 << "#if defined(SE_DATA_FROM_CODE_COPY) || "
-                        "defined(SE_DATA_FROM_CODE_DIRECT)\n";
-            outfile2 << "#include <stdint.h>\n\n";  // uint32_t
+            file2 << "#pragma once\n\n#include \"defines.h\"\n\n";
+            file2 << "#if defined(SE_DATA_FROM_CODE_COPY) || "
+                     "defined(SE_DATA_FROM_CODE_DIRECT)\n";
+            file2 << "#include <stdint.h>\n\n";  // uint32_t
+            file2 << "#ifdef SE_" << ntt_str_caps;
             if (lazy)
-            {
-                if (inverse)
-                    outfile2 << "#ifdef SE_INTT_FAST\n";
-                else
-                    outfile2 << "#ifdef SE_NTT_FAST\n";
-            }
+                file2 << "_FAST\n";
             else
+                file2 << "_REG\n";
+            if (large_modulus)
             {
-                if (inverse)
-                    outfile2 << "#ifdef SE_INTT_REG\n";
-                else
-                    outfile2 << "#ifdef SE_NTT_REG\n";
+                file2 << "// -- Note: This file uses >30-bit primes and cannot";
+                file2 << " be used with the SEAL-Embedded device library." << endl;
             }
-            outfile2 << "#ifdef SE_DATA_FROM_CODE_COPY\nconst\n#endif" << endl;
-            // outfile2 << "uint64_t ";
-            outfile2 << "ZZ ";
-            if (inverse) outfile2 << "i";
-            outfile2 << "ntt_";
-            // if (lazy) outfile2 << "fast_";
-            outfile2 << "roots_save_prime" << to_string(mod_loop);
-            outfile2 << "[" << num_elements << "] = { ";
+            file2 << "#ifdef SE_DATA_FROM_CODE_COPY\nconst\n#endif" << endl;
+            if (large_modulus)
+                file2 << "uint64_t ";
+            else
+                file2 << "ZZ ";
+            file2 << ntt_str << "_";
+            file2 << "roots_save_prime" << to_string(t);
+            file2 << "[" << num_elements << "] = { ";
         }
 
         for (size_t i = 0; i < n; i++)
@@ -344,11 +398,16 @@ void gen_save_ntt_roots(string dirpath, const SEALContext &context, bool lazy, b
             const MultiplyUIntModOperand w =
                 (!inverse) ? tables->get_from_root_powers(i) : tables->get_from_inv_root_powers(i);
 
-            // -- Debugging info
-            if (i < 5)
+            size_t logn = seal::util::get_power_of_two(n);
+            assert(logn != -1);
+            size_t actual_idx = reverse_bits(i, logn);
+
+            // -- Debugging / For filling in SEAL-Embedded constants
+            if (actual_idx == 1)
             {
+                if (inverse) cout << "inverse_";
                 cout << "root[" << i << "]: operand = " << w.operand << " , quotient = ";
-                if (large_primes)
+                if (large_modulus)
                     cout << w.quotient << endl;
                 else
                     cout << upper32(w.quotient) << endl;
@@ -357,28 +416,29 @@ void gen_save_ntt_roots(string dirpath, const SEALContext &context, bool lazy, b
             for (size_t k = 0; k < 1 + static_cast<size_t>(lazy); k++)
             {
                 uint64_t data = (!k) ? w.operand : w.quotient;
-                if (k && !large_primes) { data = static_cast<uint64_t>(upper32(data)); }
-                size_t primesize = large_primes ? 8 : 4;  // size in bytes
-                for (size_t j = 0; j < primesize; j++)    // write one byte at a time
+                if (k && !large_modulus) { data = static_cast<uint64_t>(upper32(data)); }
+                size_t primesize = large_modulus ? 8 : 4;  // size in bytes
+                for (size_t j = 0; j < primesize; j++)     // write one byte at a time
                 {
                     size_t shift_amt = high_byte_first ? primesize - 1 - j : j;
                     uint8_t byte     = (data >> (8 * shift_amt)) & 0xFF;
-                    outfile.put(static_cast<char>(byte));
+                    file.put(static_cast<char>(byte));
                 }
                 if (string_roots)
                 {
                     string next_str  = (((i + 1) < n) || (!k && lazy)) ? ", " : "};\n";
-                    string ulong_str = large_primes ? "ULL" : "";
-                    outfile2 << to_string(data) + ulong_str << next_str;
-                    if (!(i % 64) && i && !k) outfile2 << "\n";
+                    string ulong_str = large_modulus ? "ULL" : "";
+                    uint64_t data_s  = high_byte_first ? endian_flip(data) : data;
+                    file2 << to_string(data_s) + ulong_str << next_str;
+                    if (!(i % 64) && i && !k) file2 << "\n";
                 }
             }
         }
-        outfile.close();
+        file.close();
         if (string_roots)
         {
-            outfile2 << "\n#endif\n#endif\n" << endl;
-            outfile2.close();
+            file2 << "\n#endif\n#endif\n" << endl;
+            file2.close();
         }
     }
     gen_save_ntt_roots_header(dirpath, context, inverse);
@@ -391,7 +451,7 @@ Requires numbits to be at most 16.
 @param[in] input    Value to be bit-reversed
 @param[in] numbits  Number of bits to reverse
 */
-static size_t index_map_bit_rev(size_t input, size_t numbits)
+static size_t bit_rev_16bits(size_t input, size_t numbits)
 {
     assert(numbits <= 16);
     size_t t = (((input & 0xaaaa) >> 1) | ((input & 0x5555) << 1));
@@ -408,14 +468,11 @@ void gen_save_index_map(string dirpath, const SEALContext &context, bool high_by
     uint64_t m        = (uint64_t)n * 2;               // m = 2n
     size_t slot_count = n / 2;                         // slot_count = n/2
     size_t logn       = static_cast<size_t>(log2(n));  // number of bits to represent n
-
-    // -- If n > 16384, cannot use uint16_t
-    assert(n < 16384);
+    assert(logn <= 16);
 
     // -- 3 generates a multiplicative group mod 2^n with order n/2
     // (Note: 5 would work as well, but 3 matches SEAL and SEAL-Embedded)
     uint64_t gen = 3;
-    // uint64_t gen = 5;
     uint64_t pos = 1;
 
     uint16_t *index_map = (uint16_t *)calloc(n, sizeof(uint16_t));
@@ -425,10 +482,12 @@ void gen_save_index_map(string dirpath, const SEALContext &context, bool high_by
         size_t index1 = ((size_t)pos - 1) / 2;
         size_t index2 = n - index1 - 1;
 
+        assert(index1 <= 0xFFFF && index2 <= 0xFFFF);  // less than max uint16_t
+
         // -- Merge index mapping step w/ bitrev step req. for later application of
-        // IFFT/NTT
-        index_map[i]              = (uint16_t)index_map_bit_rev(index1, logn);
-        index_map[i + slot_count] = (uint16_t)index_map_bit_rev(index2, logn);
+        //    IFFT/NTT
+        index_map[i]              = (uint16_t)bit_rev_16bits(index1, logn);
+        index_map[i + slot_count] = (uint16_t)bit_rev_16bits(index2, logn);
 
         // -- Next root
         pos *= gen;
@@ -443,7 +502,7 @@ void gen_save_index_map(string dirpath, const SEALContext &context, bool high_by
     // -- Save to binary file
     {
         string fname = dirpath + "index_map_" + to_string(n) + ".dat";
-        fstream outfile(fname.c_str(), ios::out | ios::binary | ios::trunc);
+        fstream file(fname.c_str(), ios::out | ios::binary | ios::trunc);
         cout << "Writing to " << fname << endl;
         for (size_t i = 0; i < n; i++)
         {
@@ -451,38 +510,43 @@ void gen_save_index_map(string dirpath, const SEALContext &context, bool high_by
             {
                 size_t shift_amt = (high_byte_first) ? 1 - j : j;
                 uint8_t byte     = (index_map[i] >> (8 * shift_amt)) & 0xFF;
-                outfile.put(static_cast<char>(byte));
+                file.put(static_cast<char>(byte));
             }
         }
-        outfile.close();
+        file.close();
     }
 
     // -- Hard-code in code file
     {
         string fname = dirpath + "str_index_map.h";
-        fstream outfile(fname.c_str(), ios::out | ios::binary | ios::trunc);
+        fstream file(fname.c_str(), ios::out | ios::binary | ios::trunc);
         cout << "Writing to " << fname << endl;
 
-        outfile << "#pragma once\n\n#include \"defines.h\"\n\n";
-        outfile << "#if defined(SE_DATA_FROM_CODE_COPY) || "
-                   "defined(SE_DATA_FROM_CODE_DIRECT)\n";
-        outfile << "#if defined(SE_INDEX_MAP_LOAD) || "
-                   "defined(SE_INDEX_MAP_LOAD_PERSIST)\n";
-        outfile << "#include <stdint.h>\n\n";  // uint64_t ?
-        outfile << "#ifdef SE_DATA_FROM_CODE_COPY\nconst\n#endif" << endl;
-        outfile << "// -- index map indices for polynomial ring degree = " << n << "\n";
-        outfile << "uint32_t index_map_store[" << n / 2 << "] = { ";
+        file << "#pragma once\n\n#include \"defines.h\"\n\n";
+        file << "#if defined(SE_DATA_FROM_CODE_COPY) || "
+                "defined(SE_DATA_FROM_CODE_DIRECT)\n";
+        file << "#if defined(SE_INDEX_MAP_LOAD) || "
+                "defined(SE_INDEX_MAP_LOAD_PERSIST) || "
+                "defined(SE_INDEX_MAP_LOAD_PERSIST_SYM_LOAD_ASYM)\n";
+        file << "#include <stdint.h>\n\n";  // uint64_t ?
+        file << "#ifdef SE_DATA_FROM_CODE_COPY\nconst\n#endif" << endl;
+        file << "// -- index map indices for polynomial ring degree = " << n << "\n";
+        file << "uint32_t index_map_store[" << n / 2 << "] = { ";
         uint32_t *index_map_str_save = (uint32_t *)index_map;
 
         size_t i_stop = n / 2;  // half since we are storing as uint32 instead of uint16
         for (size_t i = 0; i < i_stop; i++)
         {
             string next_str = ((i + 1) < i_stop) ? ", " : "};\n";
-            outfile << "0x" << hex << index_map[i] << next_str;
-            if (!(i % 13)) outfile << "\n";
+            file << "0x" << std::hex << index_map_str_save[i] << next_str;
+            if (!(i % 13)) file << "\n";
         }
-        outfile << "\n#endif\n#endif" << endl;
-        outfile.close();
+        file << "\n#endif\n#endif" << endl;
+        file.close();
     }
-    free(index_map);
+    if (index_map)
+    {
+        free(index_map);
+        index_map = 0;
+    }
 }

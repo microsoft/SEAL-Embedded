@@ -26,7 +26,8 @@ sysroot=10
 
 SCRIPT_DIR_PATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 GNU_TOOLCHAIN_PATH="${HOME}/gcc-arm-none-eabi-10.3-2021.07"
+IMAGE_DIR_PATH="./build"
 
 $GNU_TOOLCHAIN_PATH/bin/arm-none-eabi-gdb \
 --command=$SCRIPT_DIR_PATH/commands_sphere_m4.gdb \
-./SEAL_EMBEDDED.out
+$IMAGE_DIR_PATH/SEAL_EMBEDDED.out

@@ -27,9 +27,12 @@ void delete_parameters(Parms *parms)
 {
 #ifdef SE_USE_MALLOC
     se_assert(parms);
-    free(parms->moduli);
-    parms->moduli = NULL;
-    parms         = NULL;
+    if (parms->moduli)
+    {
+        free(parms->moduli);
+        parms->moduli = 0;
+    }
+    parms = NULL;
 #else
     SE_UNUSED(parms);
 #endif
@@ -94,7 +97,7 @@ Helper function to set the Parameters instance.
 */
 static void set_params_base(size_t degree, size_t nprimes, Parms *parms)
 {
-    se_assert(degree >= 2 && degree <= 16384);
+    se_assert(degree >= 1024 && degree <= 16384);
     se_assert(is_power_of_2(degree));
     se_assert(parms);
     se_assert(nprimes >= 1);
@@ -118,11 +121,63 @@ static void set_params_base(size_t degree, size_t nprimes, Parms *parms)
 #endif
 }
 
+/**
+Helper function to set 27-bit primes
+
+@param[in, out] parms  Parameters object to set
+*/
+void set_parms_ckks_27bit_helper(Parms *parms)
+{
+    se_assert(parms);
+    se_assert(parms->nprimes >= 1);
+    se_assert(parms->coeff_count == 1024 || parms->coeff_count == 2048 ||
+              parms->coeff_count == 4096);
+    switch (parms->nprimes)
+    {
+        // -- 27-bit primes equal to 1 mod 8192
+        case 3: set_modulus(134176769, &(parms->moduli[2]));
+        case 2: set_modulus(134111233, &(parms->moduli[1]));
+        case 1: set_modulus(134012929, &(parms->moduli[0]));
+    }
+}
+
+/**
+Helper function to set 30-bit primes
+
+@param[in, out] parms  Parameters object to set
+*/
+void set_parms_ckks_30bit_helper(Parms *parms)
+{
+    se_assert(parms);
+    se_assert(parms->nprimes >= 1);
+    switch (parms->nprimes)
+    {
+        // -- 30-bits primes equal to 1 mod 65536?
+        // TODO: are these pragmas ignored when necessary?
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Warray-bounds"
+        case 13: set_modulus(1062535169, &(parms->moduli[12]));
+        case 12: set_modulus(1062469633, &(parms->moduli[11]));
+        case 11: set_modulus(1061093377, &(parms->moduli[10]));
+        case 10: set_modulus(1060765697, &(parms->moduli[9]));
+        case 9: set_modulus(1060700161, &(parms->moduli[8]));
+        case 8: set_modulus(1060175873, &(parms->moduli[7]));
+        case 7: set_modulus(1058209793, &(parms->moduli[6]));
+        case 6: set_modulus(1056440321, &(parms->moduli[5]));
+        case 5: set_modulus(1056178177, &(parms->moduli[4]));
+        case 4: set_modulus(1055260673, &(parms->moduli[3]));
+        case 3: set_modulus(1054212097, &(parms->moduli[2]));
+        case 2: set_modulus(1054015489, &(parms->moduli[1]));
+        case 1: set_modulus(1053818881, &(parms->moduli[0]));
+#pragma GCC diagnostic pop
+    }
+}
+
 void set_parms_ckks(size_t degree, size_t nprimes, Parms *parms)
 {
     se_assert(parms);
+    se_assert(nprimes >= 1);
     set_params_base(degree, nprimes, parms);
-    se_assert(nprimes < 8);
 
     // -- These precomputed values of q satisfy q = 1 (mod m), for m = 2*n and
     //    n = polynomial degree = a power of 2.
@@ -133,38 +188,54 @@ void set_parms_ckks(size_t degree, size_t nprimes, Parms *parms)
     //    and we can use the same modulus q for all powers of 2 < m. Note that the
     //    reverse is not true. That is, a prime q that satisfies q = 1 (mod m')
     //    does not necessarily satisfy q = 1 (mod m).
-    switch (parms->nprimes)
+    switch (degree)
     {
-#if (defined(SE_USE_MALLOC) || SE_NPRIMES >= 7)
-        case 7: set_modulus(1073479681, &(parms->moduli[6]));
+        // -- Add cases for custom primes here or use custom parms API
+        case 1024:
+            se_assert(parms->nprimes == 1);
+            set_parms_ckks_27bit_helper(parms);
+            parms->scale = pow(2, 20);
+            break;
+        case 2048:
+            se_assert(parms->nprimes == 1);
+            set_parms_ckks_27bit_helper(parms);
+            parms->scale = pow(2, 25);
+            break;
+#ifdef SE_DEFAULT_4K_27BIT
+        case 4096:
+            se_assert(parms->nprimes <= 3);
+            set_parms_ckks_27bit_helper(parms);
+            parms->scale = pow(2, 20);
+            break;
+#else
+        case 4096:
+            se_assert(parms->nprimes <= 3);
+            set_parms_ckks_30bit_helper(parms);
+            parms->scale = pow(2, 25);
+            break;
 #endif
-#if (defined(SE_USE_MALLOC) || SE_NPRIMES >= 6)
-        case 6: set_modulus(1073184769, &(parms->moduli[5]));
-#endif
-#if (defined(SE_USE_MALLOC) || SE_NPRIMES >= 5)
-        case 5: set_modulus(1073053697, &(parms->moduli[4]));
-#endif
-#if (defined(SE_USE_MALLOC) || SE_NPRIMES >= 4)
-        case 4: set_modulus(1072857089, &(parms->moduli[3]));
-#endif
-#if (defined(SE_USE_MALLOC) || SE_NPRIMES >= 3)
-        case 3: set_modulus(1072496641, &(parms->moduli[2]));
-#endif
-#if (defined(SE_USE_MALLOC) || SE_NPRIMES >= 2)
-        case 2: set_modulus(1071513601, &(parms->moduli[1]));
-#endif
-#if (defined(SE_USE_MALLOC) || SE_NPRIMES >= 1)
-        case 1: set_modulus(1071415297, &(parms->moduli[0]));
-#endif
+        case 8192:
+            se_assert(parms->nprimes <= 6);
+            set_parms_ckks_30bit_helper(parms);
+            parms->scale = pow(2, 25);
+            break;
+        case 16384:
+            se_assert(parms->nprimes <= 13);
+            set_parms_ckks_30bit_helper(parms);
+            parms->scale = pow(2, 25);
+            break;
     }
+    // parms.scale = pow(2, 40);
+    // parms.scale = n * n;
 }
 
-void set_custom_parms_ckks(size_t degree, size_t nprimes, const ZZ *modulus_vals, const ZZ *ratios,
+void set_custom_parms_ckks(size_t degree, double scale, size_t nprimes, const ZZ *modulus_vals, const ZZ *ratios,
                            Parms *parms)
 {
     if (!modulus_vals || !ratios)
     {
         set_parms_ckks(degree, nprimes, parms);
+        parms->scale = scale;
         return;
     }
 
@@ -174,4 +245,5 @@ void set_custom_parms_ckks(size_t degree, size_t nprimes, const ZZ *modulus_vals
         se_assert(modulus_vals[i]);  // Should never be 0
         set_modulus_custom(modulus_vals[i], ratios[i], ratios[i + 1], &(parms->moduli[i]));
     }
+    parms->scale = scale;
 }

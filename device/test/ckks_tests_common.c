@@ -66,7 +66,7 @@ void ckks_decode(const ZZ *pt, size_t values_len, uint16_t *index_map, const Par
     double scale = parms->scale;
 
     double complex *res = temp;
-    printf("scale: %0.5f\n", scale);
+    // printf("scale: %0.5f\n", scale);
     print_poly("pt", pt, n);
 
     for (size_t i = 0; i < n; i++)
@@ -75,18 +75,15 @@ void ckks_decode(const ZZ *pt, size_t values_len, uint16_t *index_map, const Par
         // -- Note: q, val are both unsigned, so dval = (double)(val - q) won't work.
         ZZ val      = pt[i];
         double dval = (val > q / 2) ? -(double)(q - val) : (double)val;
-        // if(i < 5) printf("dval: %0.6f\n", dval);
-        // if(i < 5) printf("dval/scale: %0.6f\n", dval/scale);
 
         // -- We scale by 1/scale here
-        res[i] = (double complex)_complex(dval / scale, 0);
-        // printf("value: %zu\n", i);
+        res[i] = (double complex)_complex(dval / scale, (double)0);
     }
-    print_poly_double_complex("res", res, n);
+    print_poly_double_complex("res           ", res, n);
 
     fft_inpl(res, n, logn, NULL);
 
-    print_poly_double_complex("res", res, n);
+    print_poly_double_complex("res           ", res, n);
 
 #ifdef SE_INDEX_MAP_OTF
     // -- Here we are making room for calculating the index map. Since we are just
@@ -97,26 +94,24 @@ void ckks_decode(const ZZ *pt, size_t values_len, uint16_t *index_map, const Par
     // -- We no longer need the second half of res
     double *res_double = (double *)res;
     for (size_t i = 0; i < n; i++) { res_double[i] = se_creal(res[i]); }
-    print_poly_double("res double", res_double, n);
+    print_poly_double("res double    ", res_double, n);
 
     uint16_t *index_map_ = (uint16_t *)(&(res[n / 2]));
     ckks_calc_index_map(parms, index_map_);
 
     for (size_t i = 0; i < values_len; i++)
-    {
-        values_decoded[i] = (flpt)(res_double[index_map_[i]]);
-    }
+    { values_decoded[i] = (flpt)(res_double[index_map_[i]]); }
     // print_poly_flpt("decoded", values_decoded, n);
 #else
     se_assert(index_map);
-    #ifdef SE_INDEX_MAP_LOAD
+#ifdef SE_INDEX_MAP_LOAD
     // -- Load or setup here, doesn't matter, since we are just testing...
     load_index_map(parms, index_map);
-    #endif
+#elif defined(SE_INDEX_MAP_LOAD_PERSIST_SYM_LOAD_ASYM)
+    if (parms->is_asymmetric) load_index_map(parms, index_map);
+#endif
     for (size_t i = 0; i < values_len; i++)
-    {
-        values_decoded[i] = (flpt)se_creal(res[index_map[i]]);
-    }
+    { values_decoded[i] = (flpt)se_creal(res[index_map[i]]); }
 #endif
 }
 
@@ -138,8 +133,7 @@ void check_decode_inpl(ZZ *pt, const flpt *values, size_t values_len, uint16_t *
     se_assert(!err);
 }
 
-void ckks_decrypt(const ZZ *c0, const ZZ *c1, const ZZ *s, bool small_s,
-                  const Parms *parms, ZZ *pt)
+void ckks_decrypt(const ZZ *c0, const ZZ *c1, const ZZ *s, bool small_s, const Parms *parms, ZZ *pt)
 {
     // -- c0 = [-a*s + e + pt]_Rq ; c1 = a
     //    Encryption is correct if [c0 + c1*s]_Rq = ([-a*s + e + pt]_Rq) + [(a)*s]_Rq
@@ -176,9 +170,9 @@ void ckks_decrypt_inpl(ZZ *c0, ZZ *c1, const ZZ *s, bool small_s, const Parms *p
     poly_add_mod_inpl(c0, c1, n, mod);
 }
 
-void check_decode_decrypt_inpl(ZZ *c0, ZZ *c1, const flpt *values, size_t values_len,
-                               const ZZ *s, bool small_s, const ZZ *pte_calc,
-                               uint16_t *index_map, const Parms *parms, ZZ *temp)
+void check_decode_decrypt_inpl(ZZ *c0, ZZ *c1, const flpt *values, size_t values_len, const ZZ *s,
+                               bool small_s, const ZZ *pte_calc, uint16_t *index_map,
+                               const Parms *parms, ZZ *temp)
 {
     se_assert(c0 && c1 && values && s && pte_calc && parms && temp);
     se_assert(!small_s);
@@ -189,7 +183,7 @@ void check_decode_decrypt_inpl(ZZ *c0, ZZ *c1, const flpt *values, size_t values
 
     print_poly("c0", c0, n);
     print_poly("c1", c1, n);
-    print_poly("s", s, n);
+    print_poly("s ", s, n);
 
     // -- Calculate: c0 := [c0 + c1*s]
     ckks_decrypt_inpl(c0, c1, s, small_s, parms);
@@ -217,11 +211,11 @@ void check_decode_decrypt_inpl(ZZ *c0, ZZ *c1, const flpt *values, size_t values
     // -- Then, test decode if requested
     if (values)
     {
-        print_poly("     c0       ", c0, n);
+        print_poly("c0            ", c0, n);
         intt_roots_initialize(parms, temp);
         se_assert(temp);
         intt_inpl(parms, temp, c0);
-        print_poly("pt = intt(c0)  ", c0, n);
+        print_poly("pt = intt(c0) ", c0, n);
 
         // -- We don't need enough space for the ifft_roots in this version since we don't
         //    care how long it takes

@@ -24,25 +24,27 @@ bool set_modulus(const uint32_t q, Modulus *mod)
 {
     switch (q)
     {
-        // -- 30-bit ckks primes
-        case 1073479681: set_modulus_custom(q, 0x4, 0x004003f0, mod); return 1;
-        case 1073184769: set_modulus_custom(q, 0x4, 0x00881202, mod); return 1;
-        case 1073053697: set_modulus_custom(q, 0x4, 0x00a81b84, mod); return 1;
-        case 1072857089: set_modulus_custom(q, 0x4, 0x00d82d89, mod); return 1;
-        case 1072496641: set_modulus_custom(q, 0x4, 0x01305a4a, mod); return 1;
-        case 1071513601: set_modulus_custom(q, 0x4, 0x02212189, mod); return 1;
-        case 1071415297: set_modulus_custom(q, 0x4, 0x02393baf, mod); return 1;
+        // -- Add cases for custom primes here
 
-        // -- Other values for testing
-        case 2: set_modulus_custom(q, 1UL << 31, 0, mod); return 1;
-        case 3: set_modulus_custom(q, 0x55555555, 0x55555555, mod); return 1;
-        case 10: set_modulus_custom(q, 0x19999999, 0x99999999, mod); return 1;
-        case 0xFFFF: set_modulus_custom(q, 0x10001, 0x00010001, mod); return 1;
-        case 0x10000: set_modulus_custom(q, 0x10000, 0x00000000, mod); return 1;
-        case 1559578058: set_modulus_custom(q, 0x2, 0xc1017e44, mod); return 1;
-        case 2147483647:
-            set_modulus_custom(q, 0x2, 0x4, mod);  // Max Q
-            return 1;
+        // -- 27 bit primes
+        case 134176769: set_modulus_custom(q, 0x20, 0x2802e03, mod); return 1;
+        case 134111233: set_modulus_custom(q, 0x20, 0x6814e43, mod); return 1;
+        case 134012929: set_modulus_custom(q, 0x20, 0xc84dfe5, mod); return 1;
+
+        // -- 30-bit primes
+        case 1062535169: set_modulus_custom(q, 0x4, 0xaccdb49, mod); return 1;
+        case 1062469633: set_modulus_custom(q, 0x4, 0xadd3267, mod); return 1;
+        case 1061093377: set_modulus_custom(q, 0x4, 0xc34cf30, mod); return 1;
+        case 1060765697: set_modulus_custom(q, 0x4, 0xc86c0d4, mod); return 1;
+        case 1060700161: set_modulus_custom(q, 0x4, 0xc9725e9, mod); return 1;
+        case 1060175873: set_modulus_custom(q, 0x4, 0xd1a6142, mod); return 1;
+        case 1058209793: set_modulus_custom(q, 0x4, 0xf07a84a, mod); return 1;
+        case 1056440321: set_modulus_custom(q, 0x4, 0x10c52d4a, mod); return 1;
+        case 1056178177: set_modulus_custom(q, 0x4, 0x11074e88, mod); return 1;
+        case 1055260673: set_modulus_custom(q, 0x4, 0x11ef051e, mod); return 1;
+        case 1054212097: set_modulus_custom(q, 0x4, 0x12f85437, mod); return 1;
+        case 1054015489: set_modulus_custom(q, 0x4, 0x132a2218, mod); return 1;
+        case 1053818881: set_modulus_custom(q, 0x4, 0x135bf4ba, mod); return 1;
 
         default:
             printf("Modulus const ratio values not found for ");

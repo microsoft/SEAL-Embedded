@@ -33,20 +33,19 @@ void bench_asym(void)
 {
     // -- Config --
 #ifdef SE_USE_MALLOC
-    size_t n       = 4096;
-    size_t nprimes = 3;
+    const size_t n       = 4096;
+    const size_t nprimes = 3;
 #else
-    size_t n       = SE_DEGREE_N;
-    size_t nprimes = SE_NPRIMES;
+    const size_t n       = SE_DEGREE_N;
+    const size_t nprimes = SE_NPRIMES;
 #endif
-    double scale = (n > 1024) ? pow(2, 25) : pow(2, 20);
     // ------------
 
     Parms parms;
-    parms.scale         = scale;
-    parms.pk_from_file  = 1;
-    parms.is_asymmetric = 1;
-    parms.sample_s      = 0;
+    parms.pk_from_file  = true;
+    parms.is_asymmetric = true;
+    parms.sample_s      = false;
+    parms.small_u       = true;  // should be this
 
 #ifdef SE_USE_MALLOC
     print_ckks_mempool_size(n, 0);
@@ -54,6 +53,7 @@ void bench_asym(void)
 #else
     print_ckks_mempool_size();
     ZZ mempool_local[MEMPOOL_SIZE];
+    memset(*mempool_local, 0, MEMPOOL_SIZE * sizeof(ZZ));
     ZZ *mempool = &(mempool_local[0]);
 #endif
 
@@ -82,7 +82,7 @@ void bench_asym(void)
     print_bench_banner(bench_name, &parms);
 
     Timer timer;
-    size_t COUNT  = 10;
+    const size_t COUNT = 10;
     float t_total = 0, t_min = 0, t_max = 0, t_curr = 0;
     for (size_t b_itr = 0; b_itr < COUNT + 1; b_itr++)
     {
@@ -116,9 +116,8 @@ void bench_asym(void)
 #if defined(SE_BENCH_ENCRYPT) || defined(SE_BENCH_FULL)
             reset_start_timer(&timer);
 #endif
-            ckks_encode_encrypt_asym(&parms, conj_vals_int, u, e1, ntt_roots, pk_c0, pk_c1, 0,
-                                     ntt_u_e1_pte,
-                                     0);  // TODO: THIS INTERFACE MIGHT BE WRONG
+            ckks_encode_encrypt_asym(&parms, conj_vals_int, u, e1, ntt_roots, ntt_u_e1_pte, NULL,
+                                     NULL, pk_c0, pk_c1);
 
 #if defined(SE_BENCH_ENCRYPT) || defined(SE_BENCH_FULL)
             stop_timer(&timer);
@@ -140,7 +139,11 @@ void bench_asym(void)
     print_bench_banner(bench_name, &parms);
 
 #ifdef SE_USE_MALLOC
-    free(mempool);
+    if (mempool)
+    {
+        free(mempool);
+        mempool = 0;
+    }
     delete_parameters(&parms);
 #endif
 }

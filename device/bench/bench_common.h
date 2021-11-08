@@ -55,9 +55,7 @@ static inline void random_zzq_poly(ZZ *poly, size_t n, Modulus *q)
 static inline void gen_double_complex_half_vec(double complex *vec, int64_t div, size_t n)
 {
     for (size_t i = 0; i < n; i++)
-    {
-        vec[i] = (double complex)_complex(gen_double_half(div), gen_double_half(div));
-    }
+    { vec[i] = (double complex)_complex(gen_double_half(div), gen_double_half(div)); }
 }
 
 static inline double gen_double_quarter(int64_t div)
@@ -79,8 +77,7 @@ static inline void gen_flpt_quarter_poly(flpt *poly, int64_t div, size_t n)
 static inline void print_bench_banner(const char *benchmark_name, const Parms *parms)
 {
 #if defined(SE_ON_NRF5) && defined(SE_NRF5_UART_PRINTF_ENABLED)
-    return;  // Printing banner on the NRF5 via serial doesn't work well. Just
-             // don't do it.
+    return;  // Printing banner on the NRF5 via serial doesn't work well. Just don't do it.
 #endif
     printf("***************************************************\n");
     printf("Running Benchmark: %s\n", benchmark_name);

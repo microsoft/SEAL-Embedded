@@ -20,28 +20,73 @@ using namespace seal::util;
 
 // ---------------- Setup ------------------
 
-void set_modulus_testing_values(size_t nprimes, vector<Modulus> &vec)
+void add_27bit_moduli(size_t nprimes, vector<Modulus> &vec)
 {
+    if (!nprimes) return;
     vec.clear();
 
     // -- Note: We create the vector in reverse first
     switch (nprimes)
     {
-        case 8: vec.push_back(Modulus(1073643521)); [[fallthrough]];
-        case 7: vec.push_back(Modulus(1073479681)); [[fallthrough]];
-        case 6: vec.push_back(Modulus(1073184769)); [[fallthrough]];
-        case 5: vec.push_back(Modulus(1073053697)); [[fallthrough]];
-        case 4: vec.push_back(Modulus(1072857089)); [[fallthrough]];
-        case 3: vec.push_back(Modulus(1072496641)); [[fallthrough]];
-        case 2: vec.push_back(Modulus(1071513601)); [[fallthrough]];
-        case 1: vec.push_back(Modulus(1071415297)); [[fallthrough]];
+        // -- These primes are all 1 mod 32768
+        case 3: vec.push_back(Modulus(134176769)); [[fallthrough]];
+        case 2: vec.push_back(Modulus(134111233)); [[fallthrough]];
+        case 1: vec.push_back(Modulus(134012929)); [[fallthrough]];
+        // TODO: This is the SEAL default. Why?
+        // case 1: vec.push_back(Modulus(132120577)); [[fallthrough]];
         default: break;
     }
     reverse(vec.begin(), vec.end());
 }
 
-SEALContext setup_seale_custom(size_t degree, const vector<Modulus> &moduli,
-                               EncryptionParameters &parms)
+void add_30bit_moduli(size_t nprimes, vector<Modulus> &vec)
+{
+    if (!nprimes) return;
+
+    vec.clear();
+
+    // -- Note: We create the vector in reverse first
+    switch (nprimes)
+    {
+        // -- These primes are all 1 mod 32768
+        /*
+        // -- These are for n = 32K
+        case 28: vec.push_back(Modulus(1073479681)); [[fallthrough]];
+        case 27: vec.push_back(Modulus(1072496641)); [[fallthrough]];
+        case 26: vec.push_back(Modulus(1071513601)); [[fallthrough]];
+        case 25: vec.push_back(Modulus(1070727169)); [[fallthrough]];
+        case 24: vec.push_back(Modulus(1069219841)); [[fallthrough]];
+        case 23: vec.push_back(Modulus(1068564481)); [[fallthrough]];
+        case 22: vec.push_back(Modulus(1068433409)); [[fallthrough]];
+        case 21: vec.push_back(Modulus(1068236801)); [[fallthrough]];
+        case 20: vec.push_back(Modulus(1065811969)); [[fallthrough]];
+        case 19: vec.push_back(Modulus(1065484289)); [[fallthrough]];
+        case 18: vec.push_back(Modulus(1064697857)); [[fallthrough]];
+        case 17: vec.push_back(Modulus(1063452673)); [[fallthrough]];
+        case 16: vec.push_back(Modulus(1063321601)); [[fallthrough]];
+        case 15: vec.push_back(Modulus(1063059457)); [[fallthrough]];
+        case 14: vec.push_back(Modulus(1062862849)); [[fallthrough]];
+        */
+        case 13: vec.push_back(Modulus(1062535169)); [[fallthrough]];
+        case 12: vec.push_back(Modulus(1062469633)); [[fallthrough]];
+        case 11: vec.push_back(Modulus(1061093377)); [[fallthrough]];
+        case 10: vec.push_back(Modulus(1060765697)); [[fallthrough]];
+        case 9: vec.push_back(Modulus(1060700161)); [[fallthrough]];
+        case 8: vec.push_back(Modulus(1060175873)); [[fallthrough]];
+        case 7: vec.push_back(Modulus(1058209793)); [[fallthrough]];
+        case 6: vec.push_back(Modulus(1056440321)); [[fallthrough]];
+        case 5: vec.push_back(Modulus(1056178177)); [[fallthrough]];
+        case 4: vec.push_back(Modulus(1055260673)); [[fallthrough]];
+        case 3: vec.push_back(Modulus(1054212097)); [[fallthrough]];
+        case 2: vec.push_back(Modulus(1054015489)); [[fallthrough]];
+        case 1: vec.push_back(Modulus(1053818881)); [[fallthrough]];
+        default: break;
+    }
+    reverse(vec.begin(), vec.end());
+}
+
+seal::SEALContext setup_seale_custom(size_t degree, const vector<Modulus> &moduli,
+                                     EncryptionParameters &parms)
 {
     for (size_t i = 0; i < moduli.size() - 1; i++)
     {
@@ -50,69 +95,83 @@ SEALContext setup_seale_custom(size_t degree, const vector<Modulus> &moduli,
     }
     parms.set_poly_modulus_degree(degree);
     parms.set_coeff_modulus(moduli);
-    SEALContext context(parms);
+    seal::SEALContext context(parms);
     print_parameters(context);
+    print_all_moduli(parms);
     cout << endl;
     return context;
 }
 
-SEALContext setup_seale_30bitprime_default(size_t degree, EncryptionParameters &parms)
+seal::SEALContext setup_seale_prime_default(size_t degree, EncryptionParameters &parms)
 {
-    int n_30bit_primes;
-    int special_prime_bitcount;
+    vector<Modulus> moduli;
     switch (degree)
     {
+        case 1024: add_27bit_moduli(1, moduli); break;
         case 2048:
-            n_30bit_primes         = 1;
-            special_prime_bitcount = 24;
+            add_27bit_moduli(1, moduli);
+            moduli.push_back((CoeffModulus::Create(degree, {27}))[0]);
             break;
+#ifdef SEALE_DEFAULT_4K_27BIT
         case 4096:
-            n_30bit_primes         = 3;
-            special_prime_bitcount = 19;
+            add_27bit_moduli(3, moduli);
+            moduli.push_back((CoeffModulus::Create(degree, {28}))[0]);
             break;
+#else
+        case 4096:
+            add_30bit_moduli(3, moduli);
+            moduli.push_back((CoeffModulus::Create(degree, {19}))[0]);
+            break;
+#endif
         case 8192:
-            n_30bit_primes         = 6;
-            special_prime_bitcount = 38;
+            add_30bit_moduli(6, moduli);
+            moduli.push_back((CoeffModulus::Create(degree, {38}))[0]);
             break;
-        default: throw runtime_error("Please use a different setup function"); break;
+        case 16384:
+            add_30bit_moduli(13, moduli);
+            moduli.push_back((CoeffModulus::Create(degree, {48}))[0]);
+            break;
+        default:
+            throw runtime_error(
+                "Please use a different setup function "
+                "(setup_seal_api or setup_seale_custom)");
+            break;
     }
-    vector<Modulus> moduli;
-    set_modulus_testing_values(n_30bit_primes, moduli);
-    vector<Modulus> special_prime = CoeffModulus::Create(degree, {special_prime_bitcount});
-    moduli.push_back(special_prime[0]);
     return setup_seale_custom(degree, moduli, parms);
 }
 
-SEALContext setup_seal_api(size_t degree, const vector<int> &bit_lengths,
-                           EncryptionParameters &parms)
+seal::SEALContext setup_seal_api(size_t degree, const vector<int> &bit_lengths,
+                                 EncryptionParameters &parms)
 {
     return setup_seale_custom(degree, CoeffModulus::Create(degree, bit_lengths), parms);
 }
 
 // ---------------- Size functions ------------------
 
-size_t get_sk_num_bytes(const SecretKey &sk, const SEALContext &context, bool incl_sp)
+size_t get_sk_num_bytes(const SecretKey &sk, const seal::SEALContext &context, bool incl_sp)
 {
-    auto &sk_parms            = context.key_context_data()->parms();
-    auto &coeff_modulus       = sk_parms.coeff_modulus();
-    size_t n                  = sk_parms.poly_modulus_degree();
-    size_t coeff_modulus_size = coeff_modulus.size();
-    size_t type_size          = sizeof(sk.data().data()[0]);
+    auto &sk_parms      = context.key_context_data()->parms();
+    auto &coeff_modulus = sk_parms.coeff_modulus();
+    size_t n            = sk_parms.poly_modulus_degree();
+    size_t nprimes      = coeff_modulus.size();
+    size_t type_size    = sizeof(sk.data().data()[0]);
+    assert(incl_sp || nprimes > 1);
 
-    size_t num_primes = incl_sp ? coeff_modulus_size : coeff_modulus_size - 1;
-    return n * num_primes * type_size;
+    size_t nprimes_count = incl_sp ? nprimes : nprimes - 1;
+    return n * nprimes_count * type_size;
 }
 
 size_t get_pk_num_bytes(const PublicKey &pk, bool incl_sp)
 {
-    size_t n                  = pk.data().poly_modulus_degree();
-    size_t coeff_modulus_size = pk.data().coeff_modulus_size();
-    size_t type_size          = sizeof(pk.data().data()[0]);
-    size_t num_components     = pk.data().size();
+    size_t n              = pk.data().poly_modulus_degree();
+    size_t nprimes        = pk.data().coeff_modulus_size();
+    size_t type_size      = sizeof(pk.data().data()[0]);
+    size_t num_components = pk.data().size();
     assert(num_components == 2);
+    assert(incl_sp || nprimes > 1);
 
-    size_t num_primes = incl_sp ? coeff_modulus_size : coeff_modulus_size - 1;
-    return n * num_primes * type_size * 2;
+    size_t nprimes_count = incl_sp ? nprimes : nprimes - 1;
+    return n * nprimes_count * type_size * 2;
 }
 
 // ---------------- Data pointers ------------------
@@ -126,9 +185,9 @@ uint64_t *get_ct_arr_ptr(Ciphertext &ct, bool second_element)
 {
     if (second_element)
     {
-        size_t n                  = ct.poly_modulus_degree();
-        size_t coeff_modulus_size = ct.coeff_modulus_size();
-        return reinterpret_cast<uint64_t *>(&(ct[n * coeff_modulus_size]));
+        size_t n       = ct.poly_modulus_degree();
+        size_t nprimes = ct.coeff_modulus_size();
+        return reinterpret_cast<uint64_t *>(&(ct[n * nprimes]));
     }
     else
     {
@@ -145,9 +204,9 @@ uint64_t *get_pk_arr_ptr(PublicKey &pk, bool second_element)
 {
     if (second_element)
     {
-        size_t n                  = pk.data().poly_modulus_degree();
-        size_t coeff_modulus_size = pk.data().coeff_modulus_size();
-        return reinterpret_cast<uint64_t *>(&(pk.data()[n * coeff_modulus_size]));
+        size_t n       = pk.data().poly_modulus_degree();
+        size_t nprimes = pk.data().coeff_modulus_size();
+        return reinterpret_cast<uint64_t *>(&(pk.data()[n * nprimes]));
     }
     else
     {
@@ -164,15 +223,15 @@ uint64_t *get_pk_arr_ptr(const PublicKeyWrapper &pk_wr, bool second_element)
 
 void clear_pk(PublicKey &pk)
 {
-    bool incl_special_prime = true;
-    size_t num_bytes        = get_pk_num_bytes(pk, incl_special_prime);
+    bool incl_sp     = true;
+    size_t num_bytes = get_pk_num_bytes(pk, incl_sp);
     memset(reinterpret_cast<char *>(get_pk_arr_ptr(pk)), 0, num_bytes);
 }
 
-void clear_sk(const SEALContext &context, SecretKey &sk)
+void clear_sk(const seal::SEALContext &context, SecretKey &sk)
 {
-    bool incl_special_prime = true;
-    size_t num_bytes        = get_sk_num_bytes(sk, context, incl_special_prime);
+    bool incl_sp     = true;
+    size_t num_bytes = get_sk_num_bytes(sk, context, incl_sp);
     memset(reinterpret_cast<char *>(get_sk_arr_ptr(sk)), 0, num_bytes);
 }
 
@@ -187,23 +246,14 @@ bool same_pk(const PublicKeyWrapper &pk1_wr, const PublicKeyWrapper &pk2_wr, boo
 
     if (pk1_wr.is_ntt != pk2_wr.is_ntt) return false;
 
-    auto &data1 = pk1_wr.pk->data();  // This is actually the backing ciphertext
-    auto &data2 = pk2_wr.pk->data();  // This is actually the backing ciphertext
+    auto &data1 = pk1_wr.pk->data();  // backing ciphertext
+    auto &data2 = pk2_wr.pk->data();  // backing ciphertext
 
-    // -- Compare polynomial degree
-    size_t n1 = data1.poly_modulus_degree();
-    size_t n2 = data2.poly_modulus_degree();
-    if (n1 != n2) return false;
-
-    // -- Compare number of primes
-    size_t coeff_modulus_size1 = data1.coeff_modulus_size();
-    size_t coeff_modulus_size2 = data2.coeff_modulus_size();
-    if (coeff_modulus_size1 != coeff_modulus_size2) return false;
-
-    // -- Compare number of components
-    size_t num_components1 = data1.size();
-    size_t num_components2 = data2.size();
-    if (num_components1 != num_components2) return false;
+    // -- Compare polynomial degree, # of primes, # of components
+    if (data1.poly_modulus_degree() != data2.poly_modulus_degree()) return false;
+    if (data1.coeff_modulus_size() != data2.coeff_modulus_size()) return false;
+    if (data1.size() != data2.size()) return false;
+    assert(compare_sp || data1.coeff_modulus_size() > 1);
 
     size_t num_bytes = get_pk_num_bytes(*(pk1_wr.pk), compare_sp) / 2;
     cout << "num bytes: " << num_bytes << endl;
@@ -238,24 +288,21 @@ bool same_pk(const PublicKeyWrapper &pk1_wr, const PublicKeyWrapper &pk2_wr, boo
     return same_pk1 && same_pk2;
 }
 
-bool same_sk(const SecretKey &sk1, const SecretKey &sk2, const SEALContext &context,
+bool same_sk(const SecretKey &sk1, const SecretKey &sk2, const seal::SEALContext &context,
              bool compare_sp)
 {
-    bool sk1_is_ntt = sk1.data().is_ntt_form();
-    bool sk2_is_ntt = sk2.data().is_ntt_form();
+    size_t num_bytes1 = get_sk_num_bytes(sk1, context);
+    size_t num_bytes2 = get_sk_num_bytes(sk2, context);
+    assert(num_bytes1 == num_bytes2);
 
-    if (sk1_is_ntt != sk2_is_ntt)
+    auto &data1 = sk1.data();  // backing plaintext
+    auto &data2 = sk2.data();  // backing plaintext
+
+    if (data1.is_ntt_form() != data2.is_ntt_form())
     {
         cout << "secret keys are not in the same form " << endl;
         return false;
     }
-
-    auto &data1 = sk1.data();  // This is actually the backing plaintext
-    auto &data2 = sk2.data();  // This is actually the backing plaintext
-
-    size_t num_bytes1 = get_sk_num_bytes(sk1, context);
-    size_t num_bytes2 = get_sk_num_bytes(sk2, context);
-    assert(num_bytes1 == num_bytes2);
 
     if (compare_sp) { return data1 == data2; }
     else
@@ -269,22 +316,30 @@ bool same_sk(const SecretKey &sk1, const SecretKey &sk2, const SEALContext &cont
 
 void print_all_moduli(EncryptionParameters &parms)
 {
-    cout << "Primes: " << endl;
+    cout << "Primes and const_ratio hw/lw: " << endl;
     for (size_t i = 0; i < parms.coeff_modulus().size(); i++)
     {
-        cout << " coeff_modulus[" << i << "]: ";
-        cout << parms.coeff_modulus()[i].value() << endl;
+        cout << " coeff_modulus[";
+        if (i < 10) cout << " ";
+        cout << i << "]: ";
+        cout << parms.coeff_modulus()[i].value();
+        cout << "  (";
+        double const_ratio_double = floor(pow(2, 64) / parms.coeff_modulus()[i].value());
+        uint64_t const_ratio      = static_cast<uint64_t>(const_ratio_double);
+        auto high_word            = const_ratio >> 32;
+        auto low_word             = const_ratio & (0xFFFFFFFF);
+        cout << std::hex << "hw = 0x" << high_word << ", lw = 0x" << low_word;
+        cout << std::dec << ")" << endl;
     }
 }
 
 void print_ct(Ciphertext &ct, size_t print_size)
 {
-    // total mod size >= 2, so ct_mod_size >=1
-    size_t ct_mod_size = ct.coeff_modulus_size();
-    size_t ct_size     = ct.size();  // should be 2 for freshly encrypted
-    size_t n           = ct.poly_modulus_degree();
-    bool is_ntt        = ct.is_ntt_form();
-    assert(ct_mod_size >= 1);
+    size_t n          = ct.poly_modulus_degree();
+    size_t ct_nprimes = ct.coeff_modulus_size();
+    size_t ct_size    = ct.size();  // should be 2 for freshly encrypted
+    bool is_ntt       = ct.is_ntt_form();
+    assert(ct_nprimes);
     assert(ct_size >= 2);
 
     string ct_name_base = is_ntt ? "(ntt) ct" : "      ct";
@@ -292,10 +347,10 @@ void print_ct(Ciphertext &ct, size_t print_size)
     for (size_t i = 0; i < ct_size; i++)
     {
         string ct_name_base_i = ct_name_base + to_string(i) + "[";
-        for (size_t j = 0; j < ct_mod_size; j++)
+        for (size_t j = 0; j < ct_nprimes; j++)
         {
             string ct_name_ij = ct_name_base_i + to_string(j) + "]";
-            size_t offset     = n * (ct_mod_size * i + j);
+            size_t offset     = n * (ct_nprimes * i + j);
             print_poly(ct_name_ij, get_ct_arr_ptr(ct) + offset, print_size);
         }
     }
@@ -306,8 +361,8 @@ void print_pk(string name, PublicKeyWrapper &pk_wr, size_t print_size, bool prin
     size_t n       = pk_wr.pk->data().poly_modulus_degree();
     size_t nprimes = pk_wr.pk->data().coeff_modulus_size();
     bool is_ntt    = pk_wr.is_ntt;
-    assert(nprimes >= 2);
     assert(pk_wr.pk->data().size() == 2);
+    assert(print_sp || nprimes > 1);
 
     string base = is_ntt ? "(ntt form)     " : "(regular form) ";
     cout << endl;
@@ -325,7 +380,7 @@ void print_pk(string name, PublicKeyWrapper &pk_wr, size_t print_size, bool prin
 }
 
 void print_sk_compare(string name1, SecretKey &sk1, string name2, SecretKey &sk2,
-                      const SEALContext &context, size_t print_size, bool print_sp)
+                      const seal::SEALContext &context, size_t print_size, bool print_sp)
 {
     auto &parms_id1 = (sk1.parms_id() == parms_id_zero) ? context.key_parms_id() : sk1.parms_id();
     auto sk1_context_data_ptr = context.get_context_data(parms_id1);
@@ -333,7 +388,7 @@ void print_sk_compare(string name1, SecretKey &sk1, string name2, SecretKey &sk2
     size_t n                  = parms1.poly_modulus_degree();
     size_t nprimes            = parms1.coeff_modulus().size();
     bool is_ntt               = sk1.data().is_ntt_form();
-    assert(nprimes >= 2);
+    assert(print_sp || nprimes > 1);
 
     auto &parms_id2 = (sk2.parms_id() == parms_id_zero) ? context.key_parms_id() : sk2.parms_id();
     auto sk2_context_data_ptr = context.get_context_data(parms_id2);
@@ -362,9 +417,9 @@ void print_pk_compare(string name1, const PublicKeyWrapper &pk1_wr, string name2
 
     assert(pk1_wr.pk->data().size() == 2);
     assert(pk1_wr.pk->data().size() == pk2_wr.pk->data().size());
-    assert(nprimes >= 2);  // minimum is 2
-    assert(nprimes == pk2_wr.pk->data().coeff_modulus_size());
     assert(n == pk2_wr.pk->data().poly_modulus_degree());
+    assert(nprimes == pk2_wr.pk->data().coeff_modulus_size());
+    assert(print_sp || nprimes > 1);
     assert(is_ntt == pk2_wr.is_ntt);
 
     string base = is_ntt ? "(ntt form)     " : "(regular form) ";

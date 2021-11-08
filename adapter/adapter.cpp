@@ -29,13 +29,9 @@ static string save_dir_path = string(SE_ADAPTER_FILE_OUTPUT_DIR) + "/adapter_out
 static string ct_str_file_path_asym = string(SE_ADAPTER_FILE_OUTPUT_DIR) + "/out_asym_api_tests";
 static string ct_str_file_path_sym  = string(SE_ADAPTER_FILE_OUTPUT_DIR) + "/out_sym_api_tests";
 
-void verify_ciphertexts_30bitprime_default(string dirpath, size_t degree, SEALContext &context,
-                                           bool symm_enc, string ct_str_file_path,
-                                           string sk_binfilename = "")
+void verify_ciphertexts(string dirpath, double scale, size_t degree, seal::SEALContext &context,
+                        bool symm_enc, string ct_str_file_path, string sk_binfilename = "")
 {
-    // size_t n = degree;
-    // EncryptionParameters parms(scheme_type::ckks);
-    // SEALContext context = setup_seale_30bitprime_default(degree, parms);
     auto &parms = context.key_context_data()->parms();
     size_t n    = parms.poly_modulus_degree();
 
@@ -49,17 +45,11 @@ void verify_ciphertexts_30bitprime_default(string dirpath, size_t degree, SEALCo
     Evaluator evaluator(context);
     CKKSEncoder encoder(context);
     size_t slot_count = encoder.slot_count();
-    // double scale      = (double)(n * n);
-    // double scale      = pow(2, 40);
-    // double scale      = pow(2, 30);
-    double scale = (n > 1024) ? pow(2, 25) : pow(2, 20);
+
     cout << "\nNumber of slots: " << slot_count << "\n" << endl;
 
     SecretKey sk = keygen.secret_key();
-    if (sk_binfilename.size() == 0)
-    {
-        sk_binfilename = dirpath + "sk_" + to_string(degree) + ".dat";
-    }
+    if (sk_binfilename.size() == 0) sk_binfilename = dirpath + "sk_" + to_string(degree) + ".dat";
     sk_bin_file_load(sk_binfilename, context, sk);
     Decryptor decryptor(context, sk);
 
@@ -85,8 +75,9 @@ void verify_ciphertexts_30bitprime_default(string dirpath, size_t degree, SEALCo
             // -- We know this should start out being true
             assert(pk_wr.is_ntt == true);
 
-            bool incl_sp = 1;  // Need to read back the special prime
-            pk_bin_file_load(dirpath, context, pk_wr, incl_sp);
+            bool incl_sp         = 1;  // Need to read back the special prime
+            bool high_byte_first = 0;
+            pk_bin_file_load(dirpath, context, pk_wr, incl_sp, high_byte_first);
             print_pk("pk", pk_wr, 8, incl_sp);
 
             pk_to_non_ntt_form(context, pk_wr);
@@ -111,25 +102,23 @@ void verify_ciphertexts_30bitprime_default(string dirpath, size_t degree, SEALCo
             cout << "            Test # " << ntest << endl;
             cout << "---------------------------------------------" << endl;
 
-            // -- Find the expected message from the string file. Comment out if not
-            // needed.
+            // -- Find the expected message from the string file. Comment out if not needed.
             vector<double> values_orig(slot_count, 0);
             cout << "Reading values from file..." << endl;
-            filepos = poly_string_file_load(ct_str_file_path, values_orig, 1, filepos);
+            filepos = poly_string_file_load(ct_str_file_path, 1, values_orig, filepos);
 
             // -- Uncomment to check against expected plaintext output (assuming
             //    corresponding lines in seal_embedded.c are also uncommented)
-            // vector<int64_t> plaintext_vals(slot_count * 2, 0);
+            // vector<int64_t> plaintext_vals(slot_count*2, 0);
             // cout << "Reading plaintext values from file..." << endl;
-            // filepos = poly_string_file_load(ct_str_file_path, plaintext_vals, 1, filepos);
+            // filepos = poly_string_file_load(ct_str_file_path, 1, plaintext_vals, filepos);
             // print_poly("\npt         ", plaintext_vals, print_size);
 
             // -- Uncomment to check against expected plaintext output (assuming
             //    corresponding lines in seal_embedded.c are also uncommented)
-            // vector<int64_t> plaintext_error_vals(slot_count * 2, 0);
+            // vector<int64_t> plaintext_error_vals(slot_count*2, 0);
             // cout << "Reading plaintext error values from file..." << endl;
-            // filepos =
-            //    poly_string_file_load(ct_str_file_path, plaintext_error_vals, 1, filepos);
+            // filepos = poly_string_file_load(ct_str_file_path, 1, plaintext_error_vals, filepos);
             // print_poly("\npte        ", plaintext_error_vals, print_size);
 
             // -- Read in the ciphertext from the string file
@@ -158,6 +147,8 @@ void verify_ciphertexts_30bitprime_default(string dirpath, size_t degree, SEALCo
             // bool are_equal = are_equal_poly(msg_d, values_orig, slot_count);
             // assert(are_equal);
             // if (!are_equal) nfailures++;
+
+            // -- Debugging
             // Plaintext pt_test;
             // encoder.encode(values_orig, scale, pt_test);
             // print_poly("pt_test", get_pt_arr_ptr(pt_test), print_size);
@@ -177,35 +168,141 @@ void verify_ciphertexts_30bitprime_default(string dirpath, size_t degree, SEALCo
     }
 }
 
-// TODO: make this non-main. Need to have a different main?
-int main()
+int main(int argc, char *argv[])
 {
-    cout << "Parameters: degree 4096, prime bit-lengths: {30, 30, 30, 19}, ntt_form, "
-            "scale = pow(2, 25)"
-         << endl;
+    // -- Instructions: Uncomment one of the below degrees and run
+    //    or specify degree as a command line argument
+    // size_t degree = 1024;
+    // size_t degree = 2048;
     size_t degree = 4096;
+    // size_t degree = 8192;
+    // size_t degree = 16384;
+
+    if (argc > 1)
+    {
+        std::istringstream ss(argv[1]);
+        size_t degree_in;
+        if (!(ss >> degree_in)) { std::cerr << "Invalid number: " << argv[1] << '\n'; }
+        else if (!ss.eof())
+        {
+            std::cerr << "Trailing characters after number: " << argv[1] << '\n';
+        }
+        assert(degree_in == 1024 || degree_in == 2048 || degree_in == 4096 || degree_in == 8192 ||
+               degree_in == 16384);
+        degree = degree_in;
+    }
+
+    double scale = pow(2, 25);
+    cout << "Parameters: degree " << degree << ", ntt_form, prime bit-lengths: {";
+    switch (degree)
+    {
+        case 1024:
+            cout << "27}, scale = pow(2, 20)" << endl;
+            scale = pow(2, 20);
+            break;
+        case 2048:
+            cout << "27, 27}, scale = pow(2, 25)" << endl;
+            scale = pow(2, 25);
+            break;
+#ifdef SEALE_DEFAULT_4K_27BIT
+        case 4096:
+            cout << "27, 27, 27, 28}, scale = pow(2, 20)" << endl;
+            scale = pow(2, 20);
+            break;
+#else
+        case 4096:
+            cout << "30, 30, 30, 19}, scale = pow(2, 25)" << endl;
+            scale = pow(2, 25);
+            break;
+#endif
+        case 8192:
+            cout << "30 (x6), 38}, scale = pow(2, 25)" << endl;
+            scale = pow(2, 25);
+            break;
+        case 16384:
+            cout << "30 (x13), 48}, scale = pow(2, 25)" << endl;
+            scale = pow(2, 25);
+            break;
+        // -- 32768 is technically possible, but we do not support it
+        // case 32768: cout << "30 (x28), 41}, scale = pow(2, 25)" << endl;
+        // scale = pow(2,25);
+        // break;
+        default: cout << "Please choose a valid degree." << endl; throw;
+    }
+
+    /*
+    (From SEAL:)
+    A larger coeff_modulus implies a larger noise budget, hence more encrypted
+    computation capabilities. However, an upper bound for the total bit-length
+    of the coeff_modulus is determined by the poly_modulus_degree, as follows:
+        +----------------------------------------------------+
+        | poly_modulus_degree | max coeff_modulus bit-length |
+        +---------------------+------------------------------+
+        | 1024                | 27                           |
+        | 2048                | 54                           |
+        | 4096                | 109                          |
+        | 8192                | 218                          |
+        | 16384               | 438                          |
+        | 32768               | 881                          |
+        +---------------------+------------------------------+
+    */
+
     EncryptionParameters parms(scheme_type::ckks);
-    SEALContext context = setup_seale_30bitprime_default(degree, parms);
+    seal::SEALContext context = setup_seale_prime_default(degree, parms);
     bool sk_generated = false, pk_generated = false;
 
-    string sk_fpath = save_dir_path + "sk_" + to_string(degree) + ".dat";
+    // -- Testing
+    // setup_seal_api(1024, {27}, parms);
+    // setup_seal_api(2048, {27, 27}, parms);
+    // setup_seal_api(2048, {30, 24}, parms);
+    // setup_seal_api(4096, {27, 27, 27, 28}, parms);
+    // setup_seal_api(4096, {30, 30, 30, 19}, parms);
+    /*
+    {
+        vector<int> bit_counts;
+        for(size_t i = 0; i < 6; i++) bit_counts.push_back(30);
+        bit_counts.push_back(38);
+        setup_seal_api(8192, bit_counts, parms);
+    }
+    */
+    /*
+    {
+        for(size_t i = 0; i < 13; i++) bit_counts.push_back(30);
+        bit_counts.push_back(48);
+        setup_seal_api(16384, bit_counts, parms);
+    }
+    */
+    /*
+    {
+        for(size_t i = 0; i < 28; i++) bit_counts.push_back(30);
+        bit_counts.push_back(41);
+        setup_seal_api(32768, bit_counts, parms);
+    }
+    */
+
     // string str_sk_fpath  = save_dir_path + "str_sk_" + to_string(degree) + ".h";
+    string sk_fpath      = save_dir_path + "sk_" + to_string(degree) + ".dat";
     string str_sk_fpath  = save_dir_path + "str_sk.h";
     string seal_sk_fpath = save_dir_path + "sk_" + to_string(degree) + "_seal" + ".dat";
     string seal_pk_fpath = save_dir_path + "pk_" + to_string(degree) + "_seal" + ".dat";
 
     SecretKey sk;
 
-    // string err_msg1 = "This option is not yet supported. Please choose another
-    // option.";
+    // string err_msg1 = "This option is not yet supported. Please choose another option.";
     string err_msg2 = "This is not a valid option choice. Please choose a valid option.";
+
+    bool is_sym = true;  // TODO: Make this command line settable
 
     while (1)
     {
         cout << "\nChoose an action:\n";
         cout << "  0) Quit\n";
         cout << "  1) Generate all objects\n";
-        cout << "  2) Verify ciphertexts\n";
+        if (is_sym) { cout << "  2) Verify ciphertexts (in symmetric mode) \n"; }
+        else
+        {
+            cout << "  2) Verify ciphertexts (in asymmetric mode)\n";
+        }
         cout << "  3) Generate secret key, public key\n";
         cout << "  4) Generate IFFT roots\n";
         cout << "  5) Generate fast (a.k.a. \"lazy\")  NTT roots\n";
@@ -216,17 +313,15 @@ int main()
         int option;
         cin >> option;
 
-        bool is_sym             = true;  // TODO: Make this command line settable
-        string ct_str_file_path = is_sym ? ct_str_file_path_sym : ct_str_file_path_asym;
-
-        bool use_seal_sk_fpath = true;
+        bool use_seal_sk_fpath = true;  // This is only used when verifying ciphertexts
         switch (option)
         {
             case 0: exit(0);
-            case 2:
-                verify_ciphertexts_30bitprime_default(save_dir_path, degree, context, is_sym,
-                                                      ct_str_file_path);
-                break;
+            case 2: {
+                string ct_str_file_path = is_sym ? ct_str_file_path_sym : ct_str_file_path_asym;
+                verify_ciphertexts(save_dir_path, scale, degree, context, is_sym, ct_str_file_path);
+            }
+            break;
             case 1: [[fallthrough]];
             case 3:
                 cout << "Generating secret key..." << endl;
@@ -253,7 +348,6 @@ int main()
             case 9: gen_save_index_map(save_dir_path, context, 0); break;
             default: cout << err_msg2 << endl; break;
         }
-        exit(0);
     }
     return 0;
 }

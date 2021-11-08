@@ -40,17 +40,16 @@ Req: modulus must be at most 31 bits
 @param[in] modulus  Modulus object with 31-bit value
 @returns            Result of input mod q in a uint32_t
 */
-static inline uint32_t barrett_reduce_32input_32modulus(uint32_t input,
-                                                        const Modulus *modulus)
+static inline uint32_t barrett_reduce_32input_32modulus(uint32_t input, const Modulus *modulus)
 {
     // -- (x = input)
     // -- (q = modulus->value)
     // -- We want to calculate [x]q (i.e. x mod q).
-    // we will use barrett reduction to calculate r
-    //   where r = [x]q or [x]2q
-    // the formula for this is:
-    //   r = [ [x]b - [floor(x*u/t) * q]b ]b
-    //   where u = floor(t/q), b = 2^64, t = 2^64
+    //    we will use barrett reduction to calculate r
+    //      where r = [x]q or [x]2q
+    //    the formula for this is:
+    //      r = [ [x]b - [floor(x*u/t) * q]b ]b
+    //    where u = floor(t/q), b = 2^64, t = 2^64
 
     uint32_t tmp;
     // -- We have modulus->const_ratio = floor(2^128/q).
@@ -87,13 +86,13 @@ static inline uint32_t barrett_reduce_64input_32modulus(const uint32_t *input,
 {
     const uint32_t *const_ratio = modulus->const_ratio;
 
-    // The following code is essentially multiplying input (128-bit)
-    // with modulus->const_ratio (63-bit--> ~64 bits), but is optimized
-    // to only calculate the highest word of the 192-bit result since
-    // it is equivalent to the reduced result.
-    // (hw = high_word, lw = low_word)
+    // -- The following code is essentially multiplying input (128-bit)
+    //    with modulus->const_ratio (63-bit--> ~64 bits), but is optimized
+    //    to only calculate the highest word of the 192-bit result since
+    //    it is equivalent to the reduced result.
+    //    (hw = high_word, lw = low_word)
 
-    // Round 1
+    // -- Round 1
     uint32_t right_hw = mul_uint32_high(input[0], const_ratio[0]);
 
     uint32_t middle_temp[2];
@@ -102,16 +101,16 @@ static inline uint32_t barrett_reduce_64input_32modulus(const uint32_t *input,
     uint32_t middle_lw_carry = add_uint32(right_hw, middle_temp[0], &middle_lw);
     uint32_t middle_hw       = middle_temp[1] + middle_lw_carry;
 
-    // Round 2
+    // -- Round 2
     uint32_t middle2_temp[2];
     mul_uint32_wide(input[1], const_ratio[0], middle2_temp);
     uint32_t middle2_lw;
     uint32_t middle2_lw_carry = add_uint32(middle_lw, middle2_temp[0], &middle2_lw);
-    uint32_t middle2_hw = middle2_temp[1] + middle2_lw_carry;  // We don't need the carry
+    uint32_t middle2_hw       = middle2_temp[1] + middle2_lw_carry;  // We don't need the carry
 
     uint32_t tmp = input[1] * const_ratio[1] + middle_hw + middle2_hw;
 
-    // Barrett subtraction
+    // -- Barrett subtraction
     tmp = input[0] - tmp * modulus->value;
     return shift_result(tmp, modulus->value);
 }
@@ -158,10 +157,9 @@ static inline uint8_t mod3_uint8input(uint8_t r)
     // return (c & r) ^ ((~c) & t);
     r        = (uint8_t)((r >> 4) + (r & 0xf));  // r' = r mod 3, since 2^4=1
     r        = (uint8_t)((r >> 2) + (r & 0x3));  // r'= r mod 3, since 2^2=1
-    r        = (uint8_t)((r >> 2) +
-                  (r & 0x3));  // r'= r mod 3, since 2^2=1, reducing r to [0, 3]
-    int8_t t = (int8_t)(r - 3);       // 0,1,2 --> 0xF?, 3 --> 0x00
-    int8_t c = t >> 7;                // 0xF? --> 0x01, 0x00 --> 0x00
+    r        = (uint8_t)((r >> 2) + (r & 0x3));  // r'= r mod 3, since 2^2=1, reducing r to [0, 3]
+    int8_t t = (int8_t)(r - 3);                  // 0,1,2 --> 0xF?, 3 --> 0x00
+    int8_t c = t >> 7;                           // 0xF? --> 0x01, 0x00 --> 0x00
     return (uint8_t)((c & r) ^ ((~c) & t));
 }
 
@@ -178,7 +176,7 @@ static inline uint8_t mod3_zzinput(uint32_t input)
     r = (r >> 8) + (r & 0xff);             // r' = r mod 3, since 2^8=1
     r = (r >> 4) + (r & 0xf);              // r' = r mod 3, since 2^4=1
     r = (r >> 2) + (r & 0x3);              // r'= r mod 3, since 2^2=1
-    r = (r >> 2) + (r & 0x3);  // r'= r mod 3, since 2^2=1, reducing r to [0, 3]
+    r = (r >> 2) + (r & 0x3);              // r'= r mod 3, since 2^2=1, reducing r to [0, 3]
     // int8_t t = (uint8_t)r - 3; // 0,1,2 --> 0xF?, 3 --> 0x00
     // int8_t c = t >> 7; // 0xF? --> 0x01, 0x00 --> 0x00
     // return (c & (uint8_t)r) ^ ((~c) & t);

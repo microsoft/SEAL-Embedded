@@ -16,12 +16,10 @@ Various tests for sampling a polynomial from a distribution.
 #include "test_common.h"
 #include "util_print.h"  // printf
 
-#ifdef SE_USE_MALLOC
-#define TEST_SAMPLE_DEGREE 4096
-#else
-#define TEST_SAMPLE_DEGREE SE_DEGREE_N
-#endif
-
+/**
+@param[in] s  Polynomial to test
+@param[in] n  Polynomial ring degree (ignored if SE_USE_MALLOC is defined)
+*/
 void test_ternary_poly_stats(ZZ *s, size_t n)
 {
     size_t num_zero = 0, num_one = 0, num_other = 0;
@@ -36,19 +34,27 @@ void test_ternary_poly_stats(ZZ *s, size_t n)
             num_other++;
     }
 
-    size_t percent_zero  = 100 * num_zero / n;
-    size_t percent_one   = 100 * num_one / n;
-    size_t percent_other = 100 * num_other / n;
+    double percent_zero  = 100 * (double)num_zero / n;
+    double percent_one   = 100 * (double)num_one / n;
+    double percent_other = 100 * (double)num_other / n;
 
-    size_t threshold_lower = 29;
-    size_t threshold_upper = 37;
+    double threshold_lower = 29;
+    double threshold_upper = 37;
 
-    printf("Percent \'0\'     values (should be ~33%%) : %0.1f\n",
-           ((double)num_zero / (double)n) * 100);
-    printf("Percent \'1\'     values (should be ~33%%) : %0.1f\n",
-           ((double)num_one / (double)n) * 100);
-    printf("Percent \'other\' values (should be ~33%%) : %0.1f\n",
-           ((double)num_other / (double)n) * 100);
+    if (n <= 1024)
+    {
+        threshold_lower -= 2;
+        threshold_upper += 2;
+    }
+    else if (n >= 8192)
+    {
+        threshold_lower += 1;
+        threshold_upper -= 1;
+    }
+
+    printf("Percent \'0\'     values (should be ~33%%) : %0.1f\n", percent_zero);
+    printf("Percent \'1\'     values (should be ~33%%) : %0.1f\n", percent_one);
+    printf("Percent \'other\' values (should be ~33%%) : %0.1f\n", percent_other);
 
     if (n > 64)
     {
@@ -63,11 +69,19 @@ void test_ternary_poly_stats(ZZ *s, size_t n)
 
 // TODO: Create tests for cbd sampling
 
-void test_sample_poly_uniform(void)
+/**
+@param[in] n  Polynomial ring degree (ignored if SE_USE_MALLOC is defined)
+*/
+void test_sample_poly_uniform(size_t n)
 {
+#ifndef SE_USE_MALLOC
+    // -- Sanity check
+    se_assert(n == SE_DEGREE_N);
+    if (n != SE_DEGREE_N) n = SE_DEGREE_N;
+#endif
+
     printf("\n******************************************\n");
     printf("Beginning test for sample_poly_uniform...\n");
-    size_t n = TEST_SAMPLE_DEGREE;
     Parms parms;
     set_parms_ckks(n, 1, &parms);
     ZZ q = parms.curr_modulus->value;
@@ -80,13 +94,15 @@ void test_sample_poly_uniform(void)
 #ifdef SE_USE_MALLOC
     ZZ *a = calloc(n, sizeof(ZZ));
 #else
-    ZZ a[SE_DEGREE_N * sizeof(ZZ)];
+    se_assert(n == SE_DEGREE_N);
+    ZZ a[SE_DEGREE_N];
+    memset(&a, 0, SE_DEGREE_N * sizeof(ZZ));
 #endif
     sample_poly_uniform(&parms, &prng, a);
 
     // -- Test
-    size_t num_above    = 0;
-    size_t num_below_eq = 0;
+    double num_above    = 0;
+    double num_below_eq = 0;
     for (int i = 0; i < n; i++)
     {
         if (a[i] > q / 2)
@@ -94,27 +110,54 @@ void test_sample_poly_uniform(void)
         else
             num_below_eq++;
     }
-    size_t percent_above    = 100 * num_above / n;
-    size_t percent_below_eq = 100 * num_below_eq / n;
-    size_t threshold_lower  = 47;
-    size_t threshold_upper  = 53;
+    double percent_above    = 100 * (double)num_above / n;
+    double percent_below_eq = 100 * (double)num_below_eq / n;
+    double threshold_lower  = 47;
+    double threshold_upper  = 53;
+    if (n <= 1024)
+    {
+        threshold_lower -= 2;
+        threshold_upper += 2;
+    }
+    else if (n >= 4096)
+    {
+        threshold_lower += 1;
+        threshold_upper -= 1;
+    }
+
+    printf("Percent of values >  \'q/2\' (should be ~50%%) : %0.1f\n",
+           ((double)num_above / (double)n) * 100);
+    printf("Percent of values <= \'q/2\' (should be ~50%%) : %0.1f\n",
+           ((double)num_below_eq / (double)n) * 100);
+
     se_assert(percent_above > threshold_lower);
     se_assert(percent_below_eq < threshold_upper);
 
     print_poly_sign("sampled a", (ZZsign *)a, n);
 #ifdef SE_USE_MALLOC
     delete_parameters(&parms);
-    free(a);
+    if (a)
+    {
+        free(a);
+        a = 0;
+    }
 #endif
     printf("... done with tests for sample_poly_uniform.\n");
     printf("******************************************\n");
 }
 
-void test_sample_poly_ternary(void)
+/**
+@param[in] n  Polynomial ring degree (ignored if SE_USE_MALLOC is defined)
+*/
+void test_sample_poly_ternary(size_t n)
 {
+#ifndef SE_USE_MALLOC
+    se_assert(n == SE_DEGREE_N);  // sanity check
+    if (n != SE_DEGREE_N) n = SE_DEGREE_N;
+#endif
+
     printf("\n******************************************\n");
     printf("Beginning test for sample_poly_ternary...\n");
-    size_t n = TEST_SAMPLE_DEGREE;
     Parms parms;
     set_parms_ckks(n, 1, &parms);
     print_zz("q", parms.curr_modulus->value);
@@ -126,6 +169,7 @@ void test_sample_poly_ternary(void)
 #ifdef SE_USE_MALLOC
     ZZ *s = malloc(n * sizeof(ZZ));
 #else
+    se_assert(n == SE_DEGREE_N);
     ZZ s[SE_DEGREE_N * sizeof(ZZ)];
 #endif
     sample_poly_ternary(&parms, &prng, s);
@@ -136,26 +180,31 @@ void test_sample_poly_ternary(void)
     print_poly("sampled s", s, n);
 #ifdef SE_USE_MALLOC
     delete_parameters(&parms);
-    free(s);
+    if (s)
+    {
+        free(s);
+        s = 0;
+    }
 #endif
     printf("... done with tests for sample_poly_ternary.\n");
     printf("******************************************\n");
 }
 
+/**
+@param[in] n  Polynomial ring degree (ignored if SE_USE_MALLOC is defined)
+*/
+void test_sample_poly_ternary_small(size_t n)
+{
 #ifndef SE_USE_MALLOC
-void test_sample_poly_ternary_small(void)
-{
+    SE_UNUSED(n);
     printf("Error. This test is not runnable because SE_USE_MALLOC is not defined.\n");
-}
+    return;
 #else
-void test_sample_poly_ternary_small(void)
-{
     printf("\n******************************************\n");
     printf("Beginning test for sample_poly_ternary_small...\n");
 
-    size_t n = TEST_SAMPLE_DEGREE;
     Parms parms;
-    set_parms_ckks(n, 3, &parms);
+    set_parms_ckks(n, 1, &parms);
     print_zz("q", parms.curr_modulus->value);
     printf("\n");
 
@@ -167,7 +216,7 @@ void test_sample_poly_ternary_small(void)
     // --> # of bits required  = 2n
     // --> # of bytes required = 2n/8 = n/4
     size_t s_small_nbytes = n / 4;
-    ZZ *s_small = calloc(s_small_nbytes, 1);
+    ZZ *s_small           = calloc(s_small_nbytes, 1);
     sample_small_poly_ternary_prng_96(n, &prng, s_small);
     print_poly_small("s              ", s_small, n);
     ZZ *s_small_save = malloc(s_small_nbytes);
@@ -175,7 +224,7 @@ void test_sample_poly_ternary_small(void)
 
     // -- Test expansion
     size_t s_expanded_nbytes = n * sizeof(ZZ);
-    ZZ *s_expanded = calloc(s_expanded_nbytes, 1);
+    ZZ *s_expanded           = calloc(s_expanded_nbytes, 1);
     expand_poly_ternary(s_small, &parms, s_expanded);
     print_poly("s_expanded     ", s_expanded, n);
     test_ternary_poly_stats(s_expanded, n);
@@ -207,9 +256,7 @@ void test_sample_poly_ternary_small(void)
             for (size_t i = 0; i < n; i++)
             {
                 if (s_inplace[i] == 0 || s_inplace[i] == 1)
-                {
-                    se_assert(s_inplace[i] == s_expanded[i]);
-                }
+                { se_assert(s_inplace[i] == s_expanded[i]); }
                 else
                 {
                     ZZ q = parms.curr_modulus->value;
@@ -227,10 +274,24 @@ void test_sample_poly_ternary_small(void)
     }
 
     delete_parameters(&parms);
-    free(s_inplace);
-    free(s_expanded);
-    free(s_small_save);
+    //clang-format off
+    if (s_inplace)
+    {
+        free(s_inplace);
+        s_inplace = 0;
+    }
+    if (s_expanded)
+    {
+        free(s_expanded);
+        s_expanded = 0;
+    }
+    if (s_small_save)
+    {
+        free(s_small_save);
+        s_small_save = 0;
+    }
+    //clang-format on
     printf("... done with tests for sample_poly_ternary_small.\n");
     printf("******************************************\n");
-}
 #endif
+}

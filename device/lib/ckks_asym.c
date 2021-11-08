@@ -34,24 +34,24 @@ size_t ckks_get_mempool_size_asym(size_t degree)
     size_t n            = degree;
     size_t mempool_size = 4 * n;  // base
 
-    #ifdef SE_IFFT_OTF
+#ifdef SE_IFFT_OTF
     mempool_size += n + n / 4 + n / 16;
-        #if defined(SE_NTT_ONE_SHOT) || defined(SE_NTT_REG)
+#if defined(SE_NTT_ONE_SHOT) || defined(SE_NTT_REG)
     mempool_size += n;
-        #elif defined(SE_NTT_FAST)
+#elif defined(SE_NTT_FAST)
     mempool_size += 2 * n;
-        #endif
-    #else
+#endif
+#else
     mempool_size += 4 * n;
-    #endif
+#endif
 
-    #if defined(SE_INDEX_MAP_PERSIST) || defined(SE_INDEX_MAP_LOAD_PERSIST)
+#if defined(SE_INDEX_MAP_PERSIST) || defined(SE_INDEX_MAP_LOAD_PERSIST)
     mempool_size += n / 2;
-    #endif
+#endif
 
-    #ifdef SE_MEMPOOL_ALLOC_VALUES
+#ifdef SE_MEMPOOL_ALLOC_VALUES
     mempool_size += n / 2;
-    #endif
+#endif
 
     se_assert(mempool_size);
     return mempool_size;
@@ -61,6 +61,7 @@ ZZ *ckks_mempool_setup_asym(size_t degree)
 {
     size_t mempool_size = ckks_get_mempool_size_asym(degree);
     ZZ *mempool         = calloc(mempool_size, sizeof(ZZ));
+    // printf("mempool_size: %zu\n", mempool_size);
     if (!mempool)
     {
         printf("Error! Allocation failed. Exiting...\n");
@@ -112,7 +113,7 @@ void ckks_set_ptrs_asym(size_t degree, ZZ *mempool, SE_PTRS *se_ptrs)
     size_t total_block2_size = ifft_roots_size ? ifft_roots_size : (ntt_roots_size + n);
 
     // -- Set pi inverse based on index map type
-#if defined(SE_INDEX_MAP_LOAD)
+#if defined(SE_INDEX_MAP_LOAD) || defined(SE_INDEX_MAP_LOAD_PERSIST_SYM_LOAD_ASYM)
     se_ptrs->index_map_ptr = (uint16_t *)&(mempool[4 * n]);
 #elif defined(SE_INDEX_MAP_PERSIST) || defined(SE_INDEX_MAP_LOAD_PERSIST)
     // -- If ifft, this will be + the ifft_roots size
@@ -120,26 +121,23 @@ void ckks_set_ptrs_asym(size_t degree, ZZ *mempool, SE_PTRS *se_ptrs)
     se_ptrs->index_map_ptr = (uint16_t *)&(mempool[4 * n + total_block2_size]);
     index_map_persist_size = n / 2;
 #endif
-
     se_ptrs->ntt_pte_ptr = &(mempool[4 * n + ntt_roots_size]);
+
 #ifdef SE_IFFT_OTF
-    se_ptrs->e1_ptr =
-        (int8_t *)&(mempool[4 * n + ntt_roots_size + n + index_map_persist_size]);
-    se_ptrs->ternary =
-        &(mempool[4 * n + ntt_roots_size + n + index_map_persist_size + n / 4]);
+    se_ptrs->e1_ptr  = (int8_t *)&(mempool[4 * n + ntt_roots_size + n + index_map_persist_size]);
+    se_ptrs->ternary = &(mempool[4 * n + ntt_roots_size + n + index_map_persist_size + n / 4]);
 #else
     se_ptrs->e1_ptr        = (int8_t *)&(mempool[4 * n + ntt_roots_size + n]);
     se_ptrs->ternary       = &(mempool[4 * n + ntt_roots_size + n + n / 4]);
 #endif
 
 #ifdef SE_MEMPOOL_ALLOC_VALUES
-    #ifdef SE_IFFT_OTF
-    se_ptrs->values = (flpt *)&(
-        mempool[4 * n + total_block2_size + index_map_persist_size + n / 4 + n / 16]);
-    #else
+#ifdef SE_IFFT_OTF
     se_ptrs->values =
-        (flpt *)&(mempool[4 * n + total_block2_size + index_map_persist_size]);
-    #endif
+        (flpt *)&(mempool[4 * n + total_block2_size + index_map_persist_size + n / 4 + n / 16]);
+#else
+    se_ptrs->values = (flpt *)&(mempool[4 * n + total_block2_size + index_map_persist_size]);
+#endif
 #endif
 
     size_t address_size = 4;
@@ -158,9 +156,8 @@ void ckks_set_ptrs_asym(size_t degree, ZZ *mempool, SE_PTRS *se_ptrs)
 #endif
 }
 
-void gen_pk(const Parms *parms, ZZ *s_small, ZZ *ntt_roots, uint8_t *seed,
-            SE_PRNG *shareable_prng, ZZ *s_save, int8_t *ep_small, ZZ *ntt_ep, ZZ *pk_c0,
-            ZZ *pk_c1)
+void gen_pk(const Parms *parms, ZZ *s_small, ZZ *ntt_roots, uint8_t *seed, SE_PRNG *shareable_prng,
+            ZZ *s_save, int8_t *ep_small, ZZ *ntt_ep, ZZ *pk_c0, ZZ *pk_c1)
 {
     se_assert(parms && shareable_prng);
     prng_randomize_reset(shareable_prng, seed);  // Safe to share this prng
@@ -169,12 +166,12 @@ void gen_pk(const Parms *parms, ZZ *s_small, ZZ *ntt_roots, uint8_t *seed,
     //    pk_c1 := a
     // -- If pk_c0 and pk_c1 point to the same location, pk0 will overwrite pk1.
     //    However, we need to return pk1. Therefore, must save it in extra buffer.
-    ckks_encode_encrypt_sym(parms, 0, ep_small, shareable_prng, s_small, ntt_ep,
-                            ntt_roots, pk_c0, pk_c1, s_save, 0);
+    ckks_encode_encrypt_sym(parms, 0, ep_small, shareable_prng, s_small, ntt_ep, ntt_roots, pk_c0,
+                            pk_c1, s_save, 0);
 }
 
-void ckks_asym_init(const Parms *parms, uint8_t *seed, SE_PRNG *prng,
-                    int64_t *conj_vals_int, ZZ *u, int8_t *e1)
+void ckks_asym_init(const Parms *parms, uint8_t *seed, SE_PRNG *prng, int64_t *conj_vals_int, ZZ *u,
+                    int8_t *e1)
 {
     se_assert(parms && prng);
     size_t n = parms->coeff_count;
@@ -200,16 +197,14 @@ void ckks_asym_init(const Parms *parms, uint8_t *seed, SE_PRNG *prng,
 #ifdef SE_DEBUG_NO_ERRORS
     memset(e1, 0, n * sizeof(int8_t));
 #else
-    sample_add_poly_cbd_generic_inpl_prng_16(conj_vals_int, n,
-                                             prng);  // now stores [pt+e0]
-    sample_poly_cbd_generic_prng_16(n, prng, e1);    // now stores [e1]
+    sample_add_poly_cbd_generic_inpl_prng_16(conj_vals_int, n, prng);  // now stores [pt+e0]
+    sample_poly_cbd_generic_prng_16(n, prng, e1);                      // now stores [e1]
 #endif
 }
 
-void ckks_encode_encrypt_asym(const Parms *parms, const int64_t *conj_vals_int,
-                              const ZZ *u, const int8_t *e1, ZZ *ntt_roots,
-                              ZZ *ntt_u_e1_pte, ZZ *ntt_u_save, ZZ *ntt_e1_save,
-                              ZZ *pk_c0, ZZ *pk_c1)
+void ckks_encode_encrypt_asym(const Parms *parms, const int64_t *conj_vals_int, const ZZ *u,
+                              const int8_t *e1, ZZ *ntt_roots, ZZ *ntt_u_e1_pte, ZZ *ntt_u_save,
+                              ZZ *ntt_e1_save, ZZ *pk_c0, ZZ *pk_c1)
 {
     se_assert(parms);
 #ifdef SE_DISABLE_TESTING_CAPABILITY
@@ -249,7 +244,7 @@ void ckks_encode_encrypt_asym(const Parms *parms, const int64_t *conj_vals_int,
 
 #ifndef SE_DISABLE_TESTING_CAPABILITY
     // if (ntt_u_save) printf("ntt u save is not null\n");
-    // else            printf("ntt u save is null!!!!\n");
+    // else            printf("ntt u save is null\n");
     if (ntt_u_save) memcpy(ntt_u_save, ntt_u_e1_pte, n * sizeof(ZZ));
         // if (ntt_u_save) print_poly("ntt(u) (inside, ntt_u_save)", ntt_u_save, n);
 #endif

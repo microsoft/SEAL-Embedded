@@ -39,7 +39,7 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     endif()
 endif()
 
-project(SEAL_Embedded_Adapter VERSION 1.0.0 LANGUAGES CXX)
+project(SEAL_Embedded_Adapter VERSION 1.1.0 LANGUAGES CXX)
 
 if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.13)
     cmake_policy(SET CMP0077 NEW)
@@ -94,7 +94,7 @@ if(SE_ADAPTER_BUILD_DEPS)
     FetchContent_Declare(
         seal
         GIT_REPOSITORY https://github.com/microsoft/SEAL.git
-        GIT_TAG        6bfac481aae4057ea887d42eb0f24371e9b4c4f9 # 3.7.1
+        GIT_TAG        79234726053c45eede688400aa219fdec0810bd8 # 3.7.2
     )
     FetchContent_GetProperties(seal)
 

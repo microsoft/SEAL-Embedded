@@ -4,15 +4,13 @@
 /**
 @file convert.h
 
-@brief Functions to convert secret keys, public keys, and ciphertexts to NTT or non-NTT
-form, and compare secret key and public key instances.
+@brief Functions to convert secret keys, public keys, and ciphertexts to NTT or non-NTT form, and
+compare secret key and public key instances.
 */
 
 #pragma once
 
-#include <cassert>
-
-#include "generate.h"
+#include "generate.h"  // PublicKeyWrapper
 #include "seal/seal.h"
 
 /**
@@ -82,14 +80,14 @@ void pt_to_non_ntt_form(const seal::SEALContext &context, seal::Plaintext &pt);
 /**
 Compares two secret key instances to see if they match.
 
-Note: This function may modify SecretKey instances to compare NTT and non-NTT forms of the
-secret key, but should revert all changes before returning.
+Note: This function may modify SecretKey instances to compare NTT and non-NTT forms of the secret
+key, but should revert all changes before returning.
 
 @param[in] context       SEAL context
 @param[in] sk1           Secret key 1
 @param[in] sk2           Secret key 2
 @param[in] incl_sp       If true, compares "special prime" component of secret keys
-@param[in] should_match  If true, throws an error if sk1 != equal sk2 (debugging only)
+@param[in] should_match  If true, throws an error if sk1 != sk2 (debugging only)
 */
 void compare_sk(const seal::SEALContext &context, seal::SecretKey &sk1, seal::SecretKey &sk2,
                 bool incl_sp, bool should_match);
@@ -97,8 +95,8 @@ void compare_sk(const seal::SEALContext &context, seal::SecretKey &sk1, seal::Se
 /**
 Compares two public key instances to see if they match.
 
-Note: This function may modify PublicKeyWrapper instances to compare NTT and non-NTT forms
-of the public key, but should revert all changes before returning.
+Note: This function may modify PublicKeyWrapper instances to compare NTT and non-NTT forms of the
+public key, but should revert all changes before returning.
 
 @param[in] context       SEAL context
 @param[in] pk1_wr        Public key 1 wrapper

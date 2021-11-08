@@ -12,9 +12,16 @@
 #include <cassert>
 #include <fstream>
 #include <iomanip>
+#include <string>
 
 #include "generate.h"
 #include "seal/seal.h"
+
+/**
+Uncomment to use the 27-bit default for n=4K instead of the 30-bit default.
+Make sure to uncomment SE_DEFAULT_4K_27BIT in the device (see: user_defines.h) as well.
+*/
+// #define SEALE_DEFAULT_4K_27BIT
 
 /**
 Exits the program when an error is detected.
@@ -34,16 +41,8 @@ inline void exit_on_err(int err, std::string msg)
 // ---------------- Setup ------------------
 // -----------------------------------------
 /**
-Helper function for setup_seal. Sets default SEAL-Embedded seal::Modulus values for testing.
-
-@param[in]     nprimes       Number of primes to set
-@param[in,out] vec           Vector of moduli
-*/
-void set_modulus_testing_values(std::size_t nprimes, std::vector<seal::Modulus> &vec);
-
-/**
-Creates SEAL context based on custom-chosen moduli. Verifies compatibility with
-SEAL-Embedded (i.e., all moduli other than the special prime must be <= 30 bits).
+Creates SEAL context based on custom-chosen moduli. Verifies compatibility with SEAL-Embedded (i.e.,
+all moduli other than the special prime must be <= 30 bits).
 
 @param[in]     degree  Polynomial ring degree
 @param[in]     moduli  Moduli
@@ -54,25 +53,31 @@ seal::SEALContext setup_seale_custom(std::size_t degree, const std::vector<seal:
                                      seal::EncryptionParameters &parms);
 
 /**
-Creates SEAL context based on default moduli for degree for SEAL-Embedded. Verifies
-compatibility with SEAL-Embedded (i.e., all moduli other than the special prime must be <=
-30 bits).
+Creates SEAL context based on default moduli for degree for SEAL-Embedded. Verifies compatibility
+with SEAL-Embedded (i.e., all moduli other than the special prime must be <= 30 bits). Note: SEAL
+chooses primes based on requested degree only. We want primes that will work for all degrees to
+simplify device constants. Therefore, primes chosen may not be the same as returned by the SEAL api.
 
-For a degree of 2048, chooses 1 30-bit prime + 1 24-bit special prime.
-For a degree of 4096, chooses 3 30-bit primes + 1 19-bit special prime.
-For a degree of 8192, chooses 6 30-bit primes + 1 38-bit special prime.
+For degree =  1024, chooses  1 27-bit prime
+For degree =  2048, chooses  1 27-bit prime  + 1 27-bit special prime.
+For degree =  4096, chooses  3 30-bit primes + 1 19-bit special prime.
+(if SEALE_DEFAULT_4K_27BIT is defined, chooses  3 27-bit primes + 1 28-bit special prime instead)
+For degree =  8192, chooses  6 30-bit primes + 1 38-bit special prime.
+For degree = 16384, chooses 13 30-bit primes + 1 48-bit special prime.
 Throws an error for all other degree choices.
+
+Note: degree = 32768 is possible but not likely useful for embedded scenarios, so we do not support
+it for now.
 
 @param[in]     degree  Polynomial ring degree
 @param[in,out] parms   Encryption parameters object to set
 @returns               SEAL context object
 */
-seal::SEALContext setup_seale_30bitprime_default(std::size_t degree,
-                                                 seal::EncryptionParameters &parms);
+seal::SEALContext setup_seale_prime_default(std::size_t degree, seal::EncryptionParameters &parms);
 
 /**
-Creates SEAL context based on parameters, using the SEAL api to choose the seal::Modulus values
-based on provided bit-lengths.
+Creates SEAL context based on parameters, using the SEAL api to choose the modulus values based on
+provided bit-lengths.
 
 @param[in]     degree       Polynomial ring degree
 @param[in]     bit_lengths  Vector of bit lengths for moduli
@@ -196,29 +201,29 @@ bool same_sk(const seal::SecretKey &sk1, const seal::SecretKey &sk2,
 /**
 Compares two polynomial objects to see if they have the same value.
 
-@param[in] a     Object 1
-@param[in] b     Object 2
-@param[in] n     Number of elements in object
-@param[in] diff  Maximum allowed difference between values (only applicable for objects
-                 with non-integer values)
-@returns         True if a and b have the same values, False otherwise
+@param[in] a      Object 1
+@param[in] b      Object 2
+@param[in] nvals  Number of elements of a and b to compare
+@param[in] diff   Maximum allowed difference between values (only applicable for objects with
+                  non-integer values)
+@returns          True if a and b have the same values, False otherwise
 */
 template <typename T>
-bool are_equal_poly(T *a, T *b, std::size_t n, double diff = 0.4)
+bool are_equal_poly(T *a, T *b, std::size_t nvals, double diff = 0.4)
 {
     bool is_error = false;
     if (std::is_same<T, double>::value)
     {
-        for (std::size_t i = 0; i < n; i++)
+        for (std::size_t i = 0; i < nvals; i++)
         {
-            double abs_val = fabs(a[i] - b[i]);
+            double abs_val = std::fabs(a[i] - b[i]);
             if (abs_val >= diff)
             {
                 std::streamsize ss = std::cout.precision();  // save original precision
                 std::cout << std::setprecision(9);
                 std::cout << "a[" << i << "]: " << a[i] << std::endl;
                 std::cout << "b[" << i << "]: " << b[i] << std::endl;
-                std::cout.precision(ss);
+                std::cout.precision(ss);  // restore precision
             }
             if (abs_val >= diff) is_error = true;
             assert(!is_error);
@@ -226,7 +231,7 @@ bool are_equal_poly(T *a, T *b, std::size_t n, double diff = 0.4)
     }
     else if (std::is_same<T, uint64_t>::value)
     {
-        is_error = memcmp(a, b, n * sizeof(T));
+        is_error = memcmp(a, b, nvals * sizeof(T));
         assert(!is_error);
     }
     else
@@ -238,22 +243,20 @@ bool are_equal_poly(T *a, T *b, std::size_t n, double diff = 0.4)
 }
 
 /**
-TODO:?
-Compares the first element of two polynomial objects to see if they have the same value.
+Compares two polynomial objects to see if they have the same value.
 
-@param[in] a     Object 1
-@param[in] b     Object 2
-@param[in] n     Number of elements in object
-@param[in] diff  Maximum allowed difference between values (only applicable for objects
-                 with non-integer values)
-@returns         True if a and b have the same values, False otherwise
+@param[in] a      Object 1
+@param[in] b      Object 2
+@param[in] nvals  Number of elements of a and b to compare
+@param[in] diff   Maximum allowed difference between values (only applicable for objects with
+                  non-integer values)
+@returns          True if a and b have the same values, False otherwise
 */
 template <typename T>
-bool are_equal_poly(std::vector<T> &a, std::vector<T> &b, std::size_t s_in, double diff = 0.4)
+bool are_equal_poly(std::vector<T> &a, std::vector<T> &b, std::size_t nvals, double diff = 0.4)
 {
-    std::size_t s = s_in;
-    if (s == 0) s = b.size();
-    return are_equal_poly(&(a[0]), &(b[0]), s, diff);
+    assert(nvals <= a.size() && nvals <= b.size());
+    return are_equal_poly(&(a[0]), &(b[0]), nvals, diff);
 }
 
 // --------------------------------------------
@@ -325,22 +328,21 @@ void print_poly(std::string pname, T *poly, std::size_t print_size, int prec = 2
 {
     std::streamsize ss = std::cout.precision();  // save original precision
     bool is_double     = std::is_same<T, double>::value;
-    if (is_double) std::cout << std::setprecision(prec);
+    if (is_double) { std::cout << std::setprecision(prec); }
 
     std::cout << pname << " : { ";
     for (std::size_t i = 0; i < print_size; i++)
     {
         std::cout << poly[i];
-        if (i < (print_size - 1)) std::cout << ", ";
+        if (i < (print_size - 1)) { std::cout << ", "; }
     }
     std::cout << " }" << std::endl;
 
-    if (is_double) std::cout.precision(ss);  // restore precision
+    if (is_double) { std::cout.precision(ss); }  // restore precision
 }
 
 /**
-TODO:?
-Prints the first element of a polynomial object to stdout.
+Prints a polynomial object to stdout.
 
 @param[in] pname       Name of object
 @param[in] poly        Polynomial object
@@ -348,18 +350,20 @@ Prints the first element of a polynomial object to stdout.
 @param[in] prec        Precision with which to print polynomial values
 */
 template <typename T>
-void print_poly(std::string pname, std::vector<T> &poly, std::size_t psize, int prec = 2)
+void print_poly(std::string pname, std::vector<T> &poly, std::size_t print_size, int prec = 2)
 {
-    print_poly(pname, &(poly[0]), psize, prec);
+    print_poly(pname, &(poly[0]), print_size, prec);
 }
 
 /**
-Overloaded << operator for params_id. Prints the `parms_id' to std::ostream.
+Overloaded << operator for parms_id. Prints the `parms_id' to std::ostream.
 (Note: This is modified from SEAL/native/examples/examples.h.)
+
+@param[in] parms_id  parms_id object to print
 */
 inline std::ostream &operator<<(std::ostream &stream, seal::parms_id_type parms_id)
 {
-    // Save the formatting information for std::cout.
+    // -- Save the formatting information for std::cout.
     std::ios old_fmt(nullptr);
     old_fmt.copyfmt(std::cout);
 
@@ -367,15 +371,15 @@ inline std::ostream &operator<<(std::ostream &stream, seal::parms_id_type parms_
            << parms_id[1] << " " << std::setw(16) << parms_id[2] << " " << std::setw(16)
            << parms_id[3] << " ";
 
-    // Restore the old std::cout formatting.
+    // -- Restore the old std::cout formatting.
     std::cout.copyfmt(old_fmt);
 
     return stream;
 }
 
 /**
-Prints the parameters in a SEALContext to stdout. Modified from
-SEAL/native/examples/examples.h.
+Prints the parameters in a SEALContext to stdout.
+(Note: This is modified from SEAL/native/examples/examples.h.)
 
 @param[in] context  SEAL context
 */
@@ -388,15 +392,13 @@ inline void print_parameters(const seal::SEALContext &context)
     std::cout << "|   poly_modulus_degree: " << context_data.parms().poly_modulus_degree()
               << std::endl;
 
-    // Print the size of the true (product) coefficient seal::Modulus.
+    // -- Print the size of the true (product) coefficient modulus.
     std::cout << "|   coeff_modulus size: ";
     std::cout << context_data.total_coeff_modulus_bit_count() << " (";
-    auto coeff_modulus             = context_data.parms().coeff_modulus();
-    std::size_t coeff_modulus_size = coeff_modulus.size();
-    for (std::size_t i = 0; i < coeff_modulus_size - 1; i++)
-    {
-        std::cout << coeff_modulus[i].bit_count() << " + ";
-    }
+    auto coeff_modulus  = context_data.parms().coeff_modulus();
+    std::size_t nprimes = coeff_modulus.size();
+    for (std::size_t i = 0; i < nprimes - 1; i++)
+    { std::cout << coeff_modulus[i].bit_count() << " + "; }
     std::cout << coeff_modulus.back().bit_count();
     std::cout << ") bits" << std::endl;
     std::cout << "\\" << std::endl;

@@ -22,26 +22,29 @@
 #include "test_common.h"
 #include "util_print.h"
 
-void test_ckks_encode(void)
+/**
+Test CKKS encoding
+
+@param[in] n Polynomial ring degree (ignored if SE_USE_MALLOC is defined)
+*/
+void test_ckks_encode(size_t n)
 {
-#ifdef SE_USE_MALLOC
-    size_t n = 4096;
-#else
-    size_t n = SE_DEGREE_N;
+#ifndef SE_USE_MALLOC
+    se_assert(n == SE_DEGREE_N);  // sanity check
+    if (n != SE_DEGREE_N) n = SE_DEGREE_N;
 #endif
 
     Parms parms;
-    parms.scale = (n > 1024) ? pow(2, 25) : pow(2, 20);
-
-    // TODO: Make a malloc function to include test memory
 #ifdef SE_USE_MALLOC
     print_ckks_mempool_size(n, 1);
     ZZ *mempool = ckks_mempool_setup_sym(n);
 #else
     print_ckks_mempool_size();
     ZZ mempool_local[MEMPOOL_SIZE];
+    memset(&(mempool_local), 0, MEMPOOL_SIZE * sizeof(ZZ));
     ZZ *mempool = &(mempool_local[0]);
 #endif
+    // TODO: Make a malloc function to include test memory
 
     // -- Get pointers
     SE_PTRS se_ptrs_local;
@@ -60,6 +63,7 @@ void test_ckks_encode(void)
     ZZ *temp = calloc(n, sizeof(double complex));
 #else
     ZZ temp[SE_DEGREE_N * sizeof(double complex) / sizeof(ZZ)];
+    memset(&temp, 0, SE_DEGREE_N * sizeof(double complex));
 #endif
 
     // -- Set up parameters and index_map if applicable
@@ -90,8 +94,10 @@ void test_ckks_encode(void)
         check_decode_inpl(pt, v, vlen, index_map, &parms, temp);
     }
 #ifdef SE_USE_MALLOC
-    free(mempool);
-    free(temp);
+    // clang-format off
+    if (mempool) { free(mempool); mempool = 0; }
+    if (temp)    { free(temp);    temp    = 0; }
+    // clang-format on
 #endif
     delete_parameters(&parms);
 }
