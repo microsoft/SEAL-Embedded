@@ -70,13 +70,15 @@ void ckks_calc_index_map(const Parms *parms, uint16_t *index_map)
 void ckks_setup(size_t degree, size_t nprimes, uint16_t *index_map, Parms *parms)
 {
     set_parms_ckks(degree, nprimes, parms);
+    if (index_map) {
 #ifdef SE_INDEX_MAP_PERSIST
-    ckks_calc_index_map(parms, index_map);
+        ckks_calc_index_map(parms, index_map);
 #elif defined(SE_INDEX_MAP_LOAD_PERSIST)
-    load_index_map(parms, index_map);
+        load_index_map(parms, index_map);
 #elif defined(SE_INDEX_MAP_LOAD_PERSIST_SYM_LOAD_ASYM)
-    if (!parms->is_asymmetric) load_index_map(parms, index_map);
+        if (!parms->is_asymmetric) load_index_map(parms, index_map);
 #endif
+    }
 }
 
 void ckks_setup_custom(size_t degree, size_t nprimes, const ZZ *modulus_vals, const ZZ *ratios,
